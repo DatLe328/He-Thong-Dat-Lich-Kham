@@ -2,6 +2,7 @@ from flask import Flask
 from config import Config
 from db.db import db
 from routes.ping import health_bp
+from routes.doctor import doctor_bp
 
 def create_app():
     app = Flask(__name__)
@@ -10,9 +11,12 @@ def create_app():
     db.init_app(app)
 
     with app.app_context():
+        import models
+        db.drop_all()
         db.create_all()
 
     app.register_blueprint(health_bp)
+    app.register_blueprint(doctor_bp)
 
     return app
 
