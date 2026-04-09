@@ -40,7 +40,7 @@ pipeline {
                         $PYTHON_CMD -m venv venv
                         . venv/bin/activate
                         
-                        pip install --no-cache-dir -r requirements.txt
+                        pip install -r requirements.txt
                         
                         echo "--- Testing App Startup ---"
                         timeout 5s python app.py || if [ $? -eq 124 ]; then echo "App runs fine!"; else echo "App failed"; exit 1; fi
