@@ -4,12 +4,12 @@ pipeline {
     environment {
         REPO_URL = "https://github.com/DatLe328/He-Thong-Dat-Lich-Kham.git"
         BRANCH = "main"
-        FLASK_ENV=development
-        DB_USER=root
-        DB_PASSWORD=12345
-        DB_HOST=localhost
-        DB_PORT=3306
-        DB_NAME=mydb
+        FLASK_ENV="development"
+        DB_USER="root"
+        DB_PASSWORD="12345"
+        DB_HOST="localhost"
+        DB_PORT="3306"
+        DB_NAME="mydb"
     }
     
     stages {
