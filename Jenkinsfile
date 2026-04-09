@@ -7,7 +7,7 @@ pipeline {
         FLASK_ENV="development"
         DB_USER="root"
         DB_PASSWORD="12345"
-        DB_HOST="localhost"
+        DB_HOST="mysql"
         DB_PORT="3306"
         DB_NAME="mydb"
     }
