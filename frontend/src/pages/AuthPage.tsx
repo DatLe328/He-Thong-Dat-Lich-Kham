@@ -2,8 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import GoogleAuthSection from "../components/GoogleAuthSection";
 import { useAuth } from "../context/AuthContext";
-import { doctors, specialties } from "../data/doctors";
-import { siteInfo } from "../data/site";
+
 
 type AuthTab = "login" | "register";
 
@@ -18,6 +17,13 @@ function AuthPage() {
 
   const activeTab = getTab(searchParams.get("tab"));
   const redirectTo = searchParams.get("redirect") || "/doctors";
+  const siteInfo = {
+      name: "Medigo Clinic",
+      phoneRaw: "0909686868",
+   };
+
+   const doctors: any[] = [];
+   const specialties: any[] = [1];
 
   const [identifier, setIdentifier] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
