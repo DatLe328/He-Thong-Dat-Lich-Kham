@@ -33,7 +33,18 @@ const defaultUsers: StoredAuthUser[] = [
     phone: "0909686868",
     password: "123456",
     provider: "credentials",
+    role: "user"
   },
+  {
+      id: "default-doctor",
+      name: "Bác sĩ A",
+      email: "bacsi@medigoclinic.com",
+      username: "bacsi",
+      phone: "0999999999",
+      password: "123456",
+      provider: "credentials",
+      role: "doctor"
+}
 ];
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -141,6 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phone: foundUser.phone,
       provider: foundUser.provider,
       avatar: foundUser.avatar,
+
     };
 
     setUser(sessionUser);

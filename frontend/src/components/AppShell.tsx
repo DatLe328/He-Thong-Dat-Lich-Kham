@@ -41,7 +41,7 @@ function AppShell() {
           <div className="header-actions">
             {user ? (
               <>
-                {/* CLICK VÀO ĐÂY SẼ SANG PROFILE */}
+
                 <div
                   className="user-chip"
                   onClick={() => navigate("/profile")}

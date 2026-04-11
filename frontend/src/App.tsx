@@ -4,6 +4,7 @@ import AuthPage from "./pages/AuthPage";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
 
+
 function App() {
   return (
     <Routes>
@@ -20,6 +21,7 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
         <Route path="/profile" element={<ProfilePage />} />
+
       </Route>
     </Routes>
   );
