@@ -120,11 +120,15 @@ img {
   border-radius: 1rem;
   display: grid;
   place-items: center;
-  font-family: "Space Grotesk", sans-serif;
-  font-weight: 700;
-  color: white;
-  background: linear-gradient(135deg, #0f6fff, #0f172a);
+  background: white;
   box-shadow: 0 12px 30px rgba(15, 111, 255, 0.24);
+}
+
+.brand__logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .brand strong,
@@ -565,6 +569,11 @@ img {
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
+  background: linear-gradient(135deg, #0f6fff, #0f172a);
+  color: white;
+  font-family: "Space Grotesk", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
 .doctor-avatar--large {

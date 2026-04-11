@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
+import { DoctorDirectoryProvider } from "./context/DoctorDirectoryContext";
 
 import "./styles/global.css";
 
@@ -13,7 +14,9 @@ const application = (
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-         <App />
+        <DoctorDirectoryProvider>
+          <App />
+        </DoctorDirectoryProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>
