@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useDoctorDirectory } from "../context/DoctorDirectoryContext";
 import logoWeb from "../assets/logo-web.png";
@@ -10,6 +10,7 @@ function getNavLinkClass(isActive: boolean) {
 function AppShell() {
   const { user, logout } = useAuth();
   const { specialties } = useDoctorDirectory();
+  const navigate = useNavigate();
 
   return (
     <div className="app-shell">
@@ -40,7 +41,12 @@ function AppShell() {
           <div className="header-actions">
             {user ? (
               <>
-                <div className="user-chip">
+
+                <div
+                  className="user-chip"
+                  onClick={() => navigate("/profile")}
+                  style={{ cursor: "pointer" }}
+                >
                   <span className="user-chip__avatar">
                     {user.avatar ? (
                       <img src={user.avatar} alt={user.name} />
@@ -57,6 +63,7 @@ function AppShell() {
                     </small>
                   </div>
                 </div>
+
                 <button
                   type="button"
                   className="button button--ghost"
@@ -93,7 +100,7 @@ function AppShell() {
                 <h4>Liên kết nhanh</h4>
                 <NavLink to="/">Trang chủ</NavLink>
                 <NavLink to="/auth?tab=login">Đăng nhập</NavLink>
-                <NavLink to="/auth?tab=register">Đăng ký</NavLink>  
+                <NavLink to="/auth?tab=register">Đăng ký</NavLink>
               </div>
 
               <div className="site-footer__column">
