@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import GoogleAuthSection from "../components/GoogleAuthSection";
 import { useAuth } from "../context/AuthContext";
-
+import { useDoctorDirectory } from "../context/DoctorDirectoryContext";
 
 type AuthTab = "login" | "register";
 
@@ -12,18 +12,15 @@ function getTab(value: string | null): AuthTab {
 
 function AuthPage() {
   const { user, login, register, loginWithGoogle } = useAuth();
+  const { specialties, totalDoctors } = useDoctorDirectory();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const activeTab = getTab(searchParams.get("tab"));
-  const redirectTo = searchParams.get("redirect") || "/doctors";
+  const redirectTo = searchParams.get("redirect") || "/";
   const siteInfo = {
-      name: "Medigo Clinic",
-      phoneRaw: "0909686868",
-   };
-
-   const doctors: any[] = [];
-   const specialties: any[] = [1];
+    name: "Hệ thống đặt lịch khám",
+  };
 
   const [identifier, setIdentifier] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -79,7 +76,7 @@ function AuthPage() {
         password: registerPassword,
         confirmPassword,
       });
-      navigate("/doctors", { replace: true });
+      navigate("/", { replace: true });
     } catch (error) {
       setRegisterError(
         error instanceof Error
@@ -100,7 +97,7 @@ function AuthPage() {
   const handleGoogleRegister = async (credential: string) => {
     setRegisterError("");
     await loginWithGoogle(credential);
-    navigate("/doctors", { replace: true });
+    navigate("/", { replace: true });
   };
 
   return (
@@ -119,16 +116,16 @@ function AuthPage() {
 
             <div className="auth-showcase__stats">
               <div className="auth-showcase__stat">
-                <strong>{doctors.length}+</strong>
+                <strong>{totalDoctors}</strong>
                 <span>Bác sĩ chuyên khoa</span>
               </div>
               <div className="auth-showcase__stat">
-                <strong>{specialties.length - 1}</strong>
+                <strong>{specialties.length}</strong>
                 <span>Chuyên khoa nổi bật</span>
               </div>
               <div className="auth-showcase__stat">
-                <strong>24/7</strong>
-                <span>Hỗ trợ tư vấn</span>
+                <strong>Toàn bộ</strong>
+                <span>Dữ liệu bác sĩ từ backend</span>
               </div>
             </div>
           </div>
@@ -142,11 +139,11 @@ function AuthPage() {
                   lịch làm việc và lựa chọn khung giờ phù hợp.
                 </p>
                 <div className="success-card__actions">
-                  <Link to="/doctors" className="button button--primary">
-                    Xem danh sách bác sĩ
+                  <Link to="/" className="button button--primary">
+                    Về trang chủ
                   </Link>
                   <Link to="/" className="button button--ghost">
-                    Về trang chủ
+                    Tiếp tục
                   </Link>
                 </div>
               </div>
@@ -212,9 +209,9 @@ function AuthPage() {
                           />
                           <span>Ghi nhớ đăng nhập</span>
                         </label>
-                        <a href={`tel:${siteInfo.phoneRaw}`} className="text-link">
-                          Cần hỗ trợ?
-                        </a>
+                        <Link to="/" className="text-link">
+                          Về trang chủ
+                        </Link>
                       </div>
 
                       {loginError ? <div className="error-message">{loginError}</div> : null}
