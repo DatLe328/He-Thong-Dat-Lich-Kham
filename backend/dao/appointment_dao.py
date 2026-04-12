@@ -3,10 +3,10 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy import or_, and_
-from db.db import db
-from models.appointment import Appointment, AppointmentStatus
-from models.schedule    import Schedule
-from models.notification import Notification
+from backend.db.db import db
+from backend.models.appointment import Appointment, AppointmentStatus
+from backend.models.schedule    import Schedule
+from backend.models.notification import Notification
 
 
 class AppointmentDAO:
