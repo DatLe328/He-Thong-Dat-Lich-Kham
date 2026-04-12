@@ -31,10 +31,10 @@ function AppShell() {
               Trang chủ
             </NavLink>
             <NavLink
-              to="/auth?tab=login"
+              to="/search"
               className={({ isActive }) => getNavLinkClass(isActive)}
             >
-              Tài khoản
+              Bác sĩ
             </NavLink>
           </nav>
 

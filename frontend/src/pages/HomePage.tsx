@@ -26,6 +26,9 @@ function HomePage() {
             </p>
 
             <div className="hero__actions">
+              <Link to="/search" className="button button--light">
+                Tìm kiếm bác sĩ
+              </Link>
               <Link to="/auth?tab=login" className="button button--light">
                 Đăng nhập để bắt đầu
               </Link>
@@ -109,8 +112,8 @@ function HomePage() {
               <span className="eyebrow">Bác sĩ nổi bật</span>
               <h2>Bác sĩ được đánh giá cao</h2>
             </div>
-            <Link to="/auth?tab=login" className="text-link">
-              Đăng nhập để tiếp tục
+            <Link to="/search" className="text-link">
+              Xem kết quả tìm kiếm
             </Link>
           </div>
 
@@ -130,8 +133,7 @@ function HomePage() {
                 <DoctorCard
                   key={doctor.id}
                   doctor={doctor}
-                  actionTo="/auth?tab=login"
-                  actionLabel="Đăng nhập để tiếp tục"
+                  actionLabel="Xem hồ sơ và lịch làm việc"
                 />
               ))}
             </div>
