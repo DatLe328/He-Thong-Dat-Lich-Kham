@@ -56,12 +56,21 @@ function DoctorCard({
         </div>
       </dl>
 
-      <Link
-        to={actionTo ?? "/auth?tab=login"}
-        className="button button--primary button--block button--still"
-      >
-        {actionLabel}
-      </Link>
+      {actionTo ? (
+        <Link
+          to={actionTo}
+          className="button button--primary button--block button--still"
+        >
+          {actionLabel}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          className="button button--primary button--block button--still"
+        >
+          {actionLabel}
+        </button>
+      )}
     </article>
   );
 }
