@@ -133,6 +133,7 @@ function HomePage() {
                 <DoctorCard
                   key={doctor.id}
                   doctor={doctor}
+                  actionTo={`/doctors/${doctor.doctorId}`}
                   actionLabel="Xem hồ sơ và lịch làm việc"
                 />
               ))}
