@@ -62,6 +62,9 @@ class DoctorDAO:
             q = q.filter(or_(
                 User.firstName.ilike(like), User.lastName.ilike(like),
                 Doctor.bio.ilike(like), User.email.ilike(like),
+                User.phone.ilike(like),
+                Doctor.specialization.ilike(like),
+                Doctor.licenseNumber.ilike(like),
             ))
         if specialization:
             q = q.filter(Doctor.specialization.ilike(f"%{specialization}%"))

@@ -1,31 +1,68 @@
-import { ChangeEvent, startTransition, useDeferredValue } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import {
+  ChangeEvent,
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useState,
+} from "react";
+import { useSearchParams } from "react-router-dom";
 import DoctorCard from "../components/DoctorCard";
 import { useDoctorDirectory } from "../context/DoctorDirectoryContext";
+import { fetchDoctors } from "../lib/doctors";
+import { DirectoryDoctor } from "../types";
 
 function SearchResultsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { doctors, specialties, loading, error } = useDoctorDirectory();
+  const { specialties } = useDoctorDirectory();
+  const [doctors, setDoctors] = useState<DirectoryDoctor[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const selectedSpecialty = searchParams.get("specialty") ?? "Tất cả chuyên khoa";
   const keyword = searchParams.get("keyword") ?? "";
-  const deferredKeyword = useDeferredValue(keyword.trim().toLowerCase());
+  const deferredKeyword = useDeferredValue(keyword.trim());
 
-  const filteredDoctors = doctors.filter((doctor) => {
-    const specialtyMatched =
-      selectedSpecialty === "Tất cả chuyên khoa" ||
-      doctor.specialty === selectedSpecialty ||
-      doctor.specialties.includes(selectedSpecialty);
+  useEffect(() => {
+    let cancelled = false;
 
-    const keywordMatched =
-      deferredKeyword.length === 0 ||
-      doctor.name.toLowerCase().includes(deferredKeyword) ||
-      doctor.specialty.toLowerCase().includes(deferredKeyword) ||
-      doctor.email.toLowerCase().includes(deferredKeyword) ||
-      doctor.licenseNumber.toLowerCase().includes(deferredKeyword);
+    const loadSearchResults = async () => {
+      setLoading(true);
+      setError("");
 
-    return specialtyMatched && keywordMatched;
-  });
+      try {
+        const results = await fetchDoctors({
+          keyword: deferredKeyword,
+          specialization:
+            selectedSpecialty === "Tất cả chuyên khoa"
+              ? undefined
+              : selectedSpecialty,
+        });
+
+        if (!cancelled) {
+          setDoctors(results);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setDoctors([]);
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Không thể tìm kiếm bác sĩ từ backend."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadSearchResults();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deferredKeyword, selectedSpecialty]);
 
   const updateSearchParam = (key: string, value: string) => {
     const nextParams = new URLSearchParams(searchParams);
@@ -74,12 +111,14 @@ function SearchResultsPage() {
             </label>
 
             <label className="field field--wide">
-              <span>Tìm theo tên bác sĩ / chuyên khoa / email / số giấy phép</span>
+              <span>
+                Tìm theo tên bác sĩ / chuyên khoa / email / SĐT / số giấy phép
+              </span>
               <input
                 type="text"
                 value={keyword}
                 onChange={handleKeywordChange}
-                placeholder="Ví dụ: tim mạch, bác sĩ An, gmail, GP-BS..."
+                placeholder="Ví dụ: tim mạch, bác sĩ An, 090..., GP-BS..."
               />
             </label>
           </div>
@@ -87,8 +126,8 @@ function SearchResultsPage() {
           <div className="search-summary">
             <span>
               {loading
-                ? "Đang tải dữ liệu từ backend..."
-                : `${filteredDoctors.length} kết quả phù hợp`}
+                ? "Đang tìm dữ liệu từ backend..."
+                : `${doctors.length} kết quả phù hợp`}
             </span>
           </div>
 
@@ -102,9 +141,9 @@ function SearchResultsPage() {
               <h2>Không thể tải dữ liệu tìm kiếm</h2>
               <p>{error}</p>
             </div>
-          ) : filteredDoctors.length > 0 ? (
+          ) : doctors.length > 0 ? (
             <div className="doctor-grid">
-              {filteredDoctors.map((doctor) => (
+              {doctors.map((doctor) => (
                 <DoctorCard
                   key={doctor.id}
                   doctor={doctor}
