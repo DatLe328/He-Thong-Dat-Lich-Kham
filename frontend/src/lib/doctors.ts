@@ -15,6 +15,12 @@ import {
 const DOCTORS_ENDPOINT = "/api/doctors";
 const DOCTORS_PER_PAGE = 100;
 
+type FetchDoctorsOptions = {
+  keyword?: string;
+  specialization?: string;
+  clinicId?: number;
+};
+
 function splitSpecialties(value: string | null | undefined) {
   if (!value) {
     return [];
@@ -145,11 +151,26 @@ async function fetchJson<T>(url: string, fallbackMessage: string) {
   return (await response.json()) as T;
 }
 
-async function fetchDoctorsPage(page: number) {
+async function fetchDoctorsPage(page: number, options: FetchDoctorsOptions = {}) {
   const params = new URLSearchParams({
     page: String(page),
     per_page: String(DOCTORS_PER_PAGE),
   });
+
+  const keyword = options.keyword?.trim();
+  const specialization = options.specialization?.trim();
+
+  if (keyword) {
+    params.set("keyword", keyword);
+  }
+
+  if (specialization) {
+    params.set("specialization", specialization);
+  }
+
+  if (options.clinicId) {
+    params.set("clinic_id", String(options.clinicId));
+  }
 
   const payload = await fetchJson<ApiDoctorsResponse>(
     `${DOCTORS_ENDPOINT}?${params.toString()}`,
@@ -163,13 +184,13 @@ async function fetchDoctorsPage(page: number) {
   return payload;
 }
 
-export async function fetchAllDoctors() {
+export async function fetchDoctors(options: FetchDoctorsOptions = {}) {
   const mappedDoctors = new Map<number, DirectoryDoctor>();
   let currentPage = 1;
   let hasNextPage = true;
 
   while (hasNextPage) {
-    const payload = await fetchDoctorsPage(currentPage);
+    const payload = await fetchDoctorsPage(currentPage, options);
 
     payload.data.forEach((doctor) => {
       mappedDoctors.set(doctor.doctorID, mapDoctor(doctor));
@@ -183,6 +204,10 @@ export async function fetchAllDoctors() {
     (left, right) =>
       right.rating - left.rating || left.name.localeCompare(right.name, "vi")
   );
+}
+
+export async function fetchAllDoctors() {
+  return fetchDoctors();
 }
 
 export async function fetchDoctorProfile(doctorId: string | number) {

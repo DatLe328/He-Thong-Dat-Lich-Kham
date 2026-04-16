@@ -6,66 +6,49 @@ import {
   useState,
 } from "react";
 import {
+  ApiAuthResponse,
+  ApiAuthUser,
   AuthUser,
   LoginInput,
   RegisterInput,
-  StoredAuthUser,
 } from "../types";
 
 type AuthContextValue = {
   user: AuthUser | null;
-  users: StoredAuthUser[];
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
 };
 
-const USERS_STORAGE_KEY = "front-clinic-users";
 const SESSION_STORAGE_KEY = "front-clinic-session";
-
-const defaultUsers: StoredAuthUser[] = [
-  {
-    id: "default-user",
-    name: "Khách Hàng Medigo",
-    email: "khachhang@medigoclinic.vn",
-    username: "khachhang",
-    phone: "0909686868",
-    password: "123456",
-    provider: "credentials",
-    role: "user"
-  },
-  {
-      id: "default-doctor",
-      name: "Bác sĩ A",
-      email: "bacsi@medigoclinic.com",
-      username: "bacsi",
-      phone: "0999999999",
-      password: "123456",
-      provider: "credentials",
-      role: "doctor"
-}
-];
+const LOGIN_AUTH_ENDPOINT = "/api/auth/login";
+const REGISTER_AUTH_ENDPOINT = "/api/auth/register";
+const GOOGLE_AUTH_ENDPOINT = "/api/auth/google";
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function readUsersFromStorage() {
-  const savedUsers = localStorage.getItem(USERS_STORAGE_KEY);
+function mapApiAuthUser(apiUser: ApiAuthUser, fallbackProvider: AuthUser["provider"]) {
+  const fullName = [apiUser.firstName, apiUser.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
 
-  if (!savedUsers) {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(defaultUsers));
-    return defaultUsers;
-  }
-
-  try {
-    return JSON.parse(savedUsers) as StoredAuthUser[];
-  } catch {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(defaultUsers));
-    return defaultUsers;
-  }
+  return {
+    id: apiUser.id ?? String(apiUser.userID ?? apiUser.email),
+    name: apiUser.name || fullName || apiUser.email,
+    email: apiUser.email,
+    phone: apiUser.phone ?? undefined,
+    role: apiUser.role,
+    provider: apiUser.provider ?? fallbackProvider,
+    avatar: apiUser.avatar,
+    gender: apiUser.gender ?? undefined,
+    dateOfBirth: apiUser.dateOfBirth ?? undefined,
+    address: apiUser.address ?? undefined,
+  } satisfies AuthUser;
 }
 
-function readSessionFromStorage(users: StoredAuthUser[]) {
+function readSessionFromStorage() {
   const session = localStorage.getItem(SESSION_STORAGE_KEY);
 
   if (!session) {
@@ -73,53 +56,56 @@ function readSessionFromStorage(users: StoredAuthUser[]) {
   }
 
   try {
-    const parsed = JSON.parse(session) as AuthUser;
-    return users.find((user) => user.id === parsed.id) ?? parsed;
+    return JSON.parse(session) as AuthUser;
   } catch {
     localStorage.removeItem(SESSION_STORAGE_KEY);
     return null;
   }
 }
 
-function parseGoogleCredential(credential: string) {
-  try {
-    const payload = credential.split(".")[1];
+async function readAuthPayload(response: Response) {
+  return (await response.json().catch(() => null)) as
+    | ApiAuthResponse
+    | { error?: string; message?: string }
+    | null;
+}
 
-    if (!payload) {
-      return null;
-    }
+function getAuthErrorMessage(
+  payload: Awaited<ReturnType<typeof readAuthPayload>>,
+  fallback: string
+) {
+  const apiMessage =
+    payload && "error" in payload ? payload.error : payload?.message;
 
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const decoded = atob(normalized);
-    const bytes = Uint8Array.from(decoded, (char) => char.charCodeAt(0));
-    const json = new TextDecoder().decode(bytes);
-
-    return JSON.parse(json) as {
-      sub: string;
-      email: string;
-      name: string;
-      picture?: string;
-    };
-  } catch {
-    return null;
+  switch (apiMessage) {
+    case "Missing credentials":
+      return "Vui lòng nhập email hoặc số điện thoại và mật khẩu.";
+    case "User not found":
+    case "Wrong password":
+      return "Tài khoản hoặc mật khẩu không đúng.";
+    case "Missing required fields":
+      return "Vui lòng nhập đầy đủ thông tin đăng ký.";
+    case "Missing confirmPassword":
+      return "Vui lòng nhập xác nhận mật khẩu.";
+    case "Passwords do not match":
+      return "Mật khẩu xác nhận chưa khớp.";
+    case "Email already exists":
+      return "Email này đã được đăng ký.";
+    case "Phone already exists":
+      return "Số điện thoại này đã được sử dụng.";
+    case "Invalid dateOfBirth":
+      return "Ngày sinh không hợp lệ.";
+    default:
+      return apiMessage || fallback;
   }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [users, setUsers] = useState<StoredAuthUser[]>([]);
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    const storedUsers = readUsersFromStorage();
-    setUsers(storedUsers);
-    setUser(readSessionFromStorage(storedUsers));
+    setUser(readSessionFromStorage());
   }, []);
-
-  useEffect(() => {
-    if (users.length > 0) {
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    }
-  }, [users]);
 
   useEffect(() => {
     if (user) {
@@ -130,38 +116,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const login = async (input: LoginInput) => {
-    const normalizedIdentifier = input.identifier.trim().toLowerCase();
-    const foundUser = users.find((item) => {
-      const emailMatched = item.email.toLowerCase() === normalizedIdentifier;
-      const usernameMatched =
-        item.username?.toLowerCase() === normalizedIdentifier;
-      const phoneMatched = item.phone?.trim() === input.identifier.trim();
-
-      return emailMatched || usernameMatched || phoneMatched;
+    const response = await fetch(LOGIN_AUTH_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        identifier: input.identifier.trim().toLowerCase(),
+        password: input.password,
+      }),
     });
 
-    if (!foundUser || foundUser.password !== input.password) {
-      throw new Error("Tài khoản hoặc mật khẩu không đúng.");
+    const payload = await readAuthPayload(response);
+
+    if (!response.ok || !payload || !("user" in payload)) {
+      throw new Error(
+        getAuthErrorMessage(payload, "Không thể đăng nhập vào hệ thống.")
+      );
     }
 
-    const sessionUser: AuthUser = {
-      id: foundUser.id,
-      name: foundUser.name,
-      email: foundUser.email,
-      username: foundUser.username,
-      phone: foundUser.phone,
-      provider: foundUser.provider,
-      avatar: foundUser.avatar,
-
-    };
-
-    setUser(sessionUser);
+    setUser(mapApiAuthUser(payload.user, "credentials"));
   };
 
   const register = async (input: RegisterInput) => {
     const email = input.email.trim().toLowerCase();
-    const username = input.username.trim().toLowerCase();
+    const firstName = input.firstName.trim();
+    const lastName = input.lastName.trim();
     const phone = input.phone.trim();
+    const gender = input.gender.trim();
+    const dateOfBirth = input.dateOfBirth.trim();
+    const address = input.address.trim();
+
+    if (
+      !email ||
+      !firstName ||
+      !lastName ||
+      !phone ||
+      !gender ||
+      !dateOfBirth ||
+      !address
+    ) {
+      throw new Error("Vui lòng nhập đầy đủ thông tin đăng ký.");
+    }
 
     if (input.password !== input.confirmPassword) {
       throw new Error("Mật khẩu xác nhận chưa khớp.");
@@ -171,85 +168,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Mật khẩu cần tối thiểu 6 ký tự.");
     }
 
-    const emailExisted = users.some((item) => item.email.toLowerCase() === email);
-    const usernameExisted = users.some(
-      (item) => item.username?.toLowerCase() === username
-    );
-    const phoneExisted = users.some((item) => item.phone?.trim() === phone);
-
-    if (emailExisted) {
-      throw new Error("Email này đã được đăng ký.");
-    }
-
-    if (usernameExisted) {
-      throw new Error("Tên đăng nhập này đã tồn tại.");
-    }
-
-    if (phoneExisted) {
-      throw new Error("Số điện thoại này đã được sử dụng.");
-    }
-
-    const newUser: StoredAuthUser = {
-      id: `user-${crypto.randomUUID()}`,
-      name: input.username.trim(),
-      email,
-      username,
-      phone,
-      password: input.password,
-      provider: "credentials",
-    };
-
-    setUsers((currentUsers) => [...currentUsers, newUser]);
-    setUser({
-      id: newUser.id,
-      name: newUser.name,
-      email: newUser.email,
-      username: newUser.username,
-      phone: newUser.phone,
-      provider: newUser.provider,
+    const response = await fetch(REGISTER_AUTH_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        firstName,
+        lastName,
+        phone,
+        gender,
+        dateOfBirth,
+        address,
+        password: input.password,
+        confirmPassword: input.confirmPassword,
+      }),
     });
+
+    const payload = await readAuthPayload(response);
+
+    if (!response.ok || !payload || !("user" in payload)) {
+      throw new Error(
+        getAuthErrorMessage(payload, "Không thể tạo tài khoản vào lúc này.")
+      );
+    }
+
+    setUser(mapApiAuthUser(payload.user, "credentials"));
   };
 
   const loginWithGoogle = async (credential: string) => {
-    const googleProfile = parseGoogleCredential(credential);
-
-    if (!googleProfile?.email || !googleProfile.name) {
-      throw new Error("Không thể đọc thông tin đăng nhập từ Google.");
-    }
-
-    const existedUser = users.find(
-      (item) => item.email.toLowerCase() === googleProfile.email.toLowerCase()
-    );
-
-    if (existedUser) {
-      setUser({
-        id: existedUser.id,
-        name: existedUser.name,
-        email: existedUser.email,
-        username: existedUser.username,
-        phone: existedUser.phone,
-        provider: "google",
-        avatar: googleProfile.picture,
-      });
-      return;
-    }
-
-    const googleUser: StoredAuthUser = {
-      id: `google-${googleProfile.sub}`,
-      name: googleProfile.name,
-      email: googleProfile.email,
-      provider: "google",
-      avatar: googleProfile.picture,
-    };
-
-    setUsers((currentUsers) => [...currentUsers, googleUser]);
-    setUser({
-      id: googleUser.id,
-      name: googleUser.name,
-      email: googleUser.email,
-      provider: googleUser.provider,
-      avatar: googleUser.avatar,
+    const response = await fetch(GOOGLE_AUTH_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ credential }),
     });
+
+    const payload = (await response.json().catch(() => null)) as
+      | ApiAuthResponse
+      | { error?: string }
+      | null;
+
+    if (!response.ok || !payload || !("user" in payload)) {
+      const errorMessage =
+        payload && "error" in payload ? payload.error : undefined;
+
+      throw new Error(
+        errorMessage ?? "Không thể đăng nhập bằng Google vào lúc này."
+      );
+    }
+
+    setUser(mapApiAuthUser(payload.user, "google"));
   };
 
   const logout = () => {
@@ -258,7 +231,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, users, login, register, loginWithGoogle, logout }}
+      value={{ user, login, register, loginWithGoogle, logout }}
     >
       {children}
     </AuthContext.Provider>

@@ -29,8 +29,12 @@ function AuthPage() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   const [email, setEmail] = useState("");
-  const [username, setUsername] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [address, setAddress] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [registerError, setRegisterError] = useState("");
@@ -71,8 +75,12 @@ function AuthPage() {
     try {
       await register({
         email,
-        username,
+        firstName,
+        lastName,
         phone,
+        gender,
+        dateOfBirth,
+        address,
         password: registerPassword,
         confirmPassword,
       });
@@ -174,17 +182,17 @@ function AuthPage() {
                   <div className="auth-tabpanel">
                     <div className="auth-card__header">
                       <h2>Đăng nhập tài khoản</h2>
-                      <p>Nhập email, tên đăng nhập hoặc số điện thoại để tiếp tục.</p>
+                      <p>Nhập email hoặc số điện thoại để tiếp tục.</p>
                     </div>
 
                     <form className="auth-form" onSubmit={handleLoginSubmit}>
                       <label className="field">
-                        <span>Email, tên đăng nhập hoặc số điện thoại</span>
+                        <span>Email hoặc số điện thoại</span>
                         <input
                           type="text"
                           value={identifier}
                           onChange={(event) => setIdentifier(event.target.value)}
-                          placeholder="Nhập thông tin đăng nhập"
+                          placeholder="Nhập email hoặc số điện thoại"
                           required
                         />
                       </label>
@@ -271,12 +279,23 @@ function AuthPage() {
                         </label>
 
                         <label className="field">
-                          <span>Tên đăng nhập</span>
+                          <span>Họ và tên đệm</span>
                           <input
                             type="text"
-                            value={username}
-                            onChange={(event) => setUsername(event.target.value)}
-                            placeholder="Tạo tên đăng nhập"
+                            value={firstName}
+                            onChange={(event) => setFirstName(event.target.value)}
+                            placeholder="Nhập họ và tên đệm"
+                            required
+                          />
+                        </label>
+
+                        <label className="field">
+                          <span>Tên</span>
+                          <input
+                            type="text"
+                            value={lastName}
+                            onChange={(event) => setLastName(event.target.value)}
+                            placeholder="Nhập tên"
                             required
                           />
                         </label>
@@ -288,6 +307,40 @@ function AuthPage() {
                             value={phone}
                             onChange={(event) => setPhone(event.target.value)}
                             placeholder="Nhập số điện thoại"
+                            required
+                          />
+                        </label>
+
+                        <label className="field">
+                          <span>Giới tính</span>
+                          <select
+                            value={gender}
+                            onChange={(event) => setGender(event.target.value)}
+                            required
+                          >
+                            <option value="">Chọn giới tính</option>
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                            <option value="Khác">Khác</option>
+                          </select>
+                        </label>
+
+                        <label className="field">
+                          <span>Ngày sinh</span>
+                          <input
+                            type="date"
+                            value={dateOfBirth}
+                            onChange={(event) => setDateOfBirth(event.target.value)}
+                            required
+                          />
+                        </label>
+
+                        <label className="field field--full">
+                          <span>Địa chỉ</span>
+                          <textarea
+                            value={address}
+                            onChange={(event) => setAddress(event.target.value)}
+                            placeholder="Nhập địa chỉ liên hệ"
                             required
                           />
                         </label>

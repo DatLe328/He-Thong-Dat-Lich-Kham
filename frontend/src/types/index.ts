@@ -4,21 +4,23 @@ export type AuthUser = {
   id: string;
   name: string;
   email: string;
-  username?: string;
   phone?: string;
   role?: string;
   provider: AuthProvider;
   avatar?: string;
-};
-
-export type StoredAuthUser = AuthUser & {
-  password?: string;
+  gender?: string;
+  dateOfBirth?: string;
+  address?: string;
 };
 
 export type RegisterInput = {
   email: string;
-  username: string;
+  firstName: string;
+  lastName: string;
   phone: string;
+  gender: string;
+  dateOfBirth: string;
+  address: string;
   password: string;
   confirmPassword: string;
 };
@@ -26,6 +28,27 @@ export type RegisterInput = {
 export type LoginInput = {
   identifier: string;
   password: string;
+};
+
+export type ApiAuthUser = {
+  id?: string;
+  userID?: number;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  email: string;
+  phone?: string | null;
+  role?: string;
+  provider?: AuthProvider;
+  avatar?: string;
+  gender?: string | null;
+  dateOfBirth?: string | null;
+  address?: string | null;
+};
+
+export type ApiAuthResponse = {
+  message: string;
+  user: ApiAuthUser;
 };
 
 export type ApiDoctorUser = {
