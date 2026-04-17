@@ -2,13 +2,35 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import DoctorAvatar from "../components/DoctorAvatar";
 import { fetchDoctorProfile } from "../lib/doctors";
+import { bookAppointment } from "../lib/appointments";
 import { DoctorProfile } from "../types";
+import { useAuth } from "../context/AuthContext";
 
 function DoctorDetailPage() {
   const { doctorId } = useParams();
+  const { user } = useAuth();
+
   const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [selected, setSelected] = useState<{
+    scheduleId: number;
+    time: string;
+    workDate: string;
+  } | null>(null);
+
+  const [booking, setBooking] = useState(false);
+
+  const [showProxyModal, setShowProxyModal] = useState(false);
+
+  const [proxyForm, setProxyForm] = useState({
+      name: "",
+      email: "",
+      phone: "",
+      gender: "",
+      address: "",
+    });
 
   useEffect(() => {
     let cancelled = false;
@@ -28,38 +50,60 @@ function DoctorDetailPage() {
           setDoctor(profile);
           setError("");
         }
-      } catch (loadError) {
+      } catch (err) {
         if (!cancelled) {
           setDoctor(null);
-          setError(
-            loadError instanceof Error
-              ? loadError.message
-              : "Không thể tải hồ sơ bác sĩ."
-          );
+          setError(err instanceof Error ? err.message : "Không thể tải hồ sơ bác sĩ.");
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     };
 
     loadDoctor();
-
     return () => {
       cancelled = true;
     };
   }, [doctorId]);
 
+  // =========================
+  // LOGIC ĐẶT LỊCH (GIỮ NGUYÊN)
+  // =========================
+  const handleBook = async (mode: "self" | "relative") => {
+    if (!doctor || !selected) return;
+
+    try {
+      setBooking(true);
+      const userId = user?.id;
+      if (!userId) {
+        alert("Bạn chưa đăng nhập");
+        return;
+      }
+
+      await bookAppointment({
+        mode: mode,
+        userId: Number(userId),
+        doctorId: doctor.doctorId,
+        scheduleId: selected.scheduleId,
+        appointmentDate: `${selected.workDate}T${selected.time}:00`,
+      });
+
+      alert(mode === "self" ? "Đặt lịch thành công!" : "Đã chuyển hướng sang form đặt hộ thành công!");
+      setSelected(null);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Lỗi đặt lịch");
+    } finally {
+      setBooking(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="page">
         <section className="section">
-          <div className="container">
-            <div className="empty-state">
-              <h2>Đang tải hồ sơ bác sĩ</h2>
-              <p>Frontend đang lấy hồ sơ và lịch làm việc từ backend.</p>
-            </div>
+          <div className="container empty-state">
+            <h2>Đang tải hồ sơ bác sĩ</h2>
+            <p>Vui lòng chờ trong giây lát...</p>
           </div>
         </section>
       </div>
@@ -70,14 +114,12 @@ function DoctorDetailPage() {
     return (
       <div className="page">
         <section className="section">
-          <div className="container">
-            <div className="empty-state">
-              <h2>Không thể mở hồ sơ bác sĩ</h2>
-              <p>{error || "Dữ liệu bác sĩ hiện không khả dụng."}</p>
-              <Link to="/search" className="button button--primary">
-                Quay lại tìm kiếm
-              </Link>
-            </div>
+          <div className="container empty-state">
+            <h2>Không thể mở hồ sơ bác sĩ</h2>
+            <p>{error}</p>
+            <Link to="/search" className="button button--primary">
+              Quay lại tìm kiếm
+            </Link>
           </div>
         </section>
       </div>
@@ -93,26 +135,23 @@ function DoctorDetailPage() {
 
   return (
     <div className="page">
+      {/* HERO SECTION */}
       <section className="doctor-hero">
         <div className="container doctor-hero__grid">
           <div className="doctor-hero__main">
             <DoctorAvatar name={doctor.name} large />
-
             <div>
               <span className="eyebrow eyebrow--light">Hồ sơ bác sĩ</span>
               <h1>{doctor.name}</h1>
               <p className="lead">{doctor.specialty}</p>
               <p>{doctor.bio}</p>
-
-              {doctor.specialties.length ? (
+              {doctor.specialties?.length > 0 && (
                 <div className="tag-row">
-                  {doctor.specialties.map((specialty) => (
-                    <span key={specialty} className="tag tag--light">
-                      {specialty}
-                    </span>
+                  {doctor.specialties.map((s) => (
+                    <span key={s} className="tag tag--light">{s}</span>
                   ))}
                 </div>
-              ) : null}
+              )}
             </div>
           </div>
 
@@ -123,22 +162,25 @@ function DoctorDetailPage() {
             </div>
             <div className="stat-pair">
               <strong>{doctor.schedules.length}</strong>
-              <span>Ngày làm việc đang có trong hệ thống</span>
+              <span>Ngày làm việc</span>
             </div>
             <div className="stat-pair">
               <strong>{doctor.nextAvailable}</strong>
               <span>Lịch gần nhất</span>
             </div>
             <Link to="/search" className="button button--light button--block">
-              Quay lại kết quả tìm kiếm
+              Quay lại tìm kiếm
             </Link>
           </aside>
         </div>
       </section>
 
+      {/* BODY SECTION */}
       <section className="section">
         <div className="container profile-layout">
           <div className="profile-main">
+
+            {/* OVERVIEW CARD (From File 2) */}
             <article className="content-card">
               <div className="section-heading section-heading--compact">
                 <div>
@@ -146,7 +188,6 @@ function DoctorDetailPage() {
                   <h2>Thông tin hồ sơ bác sĩ</h2>
                 </div>
               </div>
-
               <div className="bullet-list">
                 {overviewItems.map((item) => (
                   <p key={item}>{item}</p>
@@ -154,6 +195,7 @@ function DoctorDetailPage() {
               </div>
             </article>
 
+            {/* SCHEDULE CARD */}
             <article className="content-card">
               <div className="section-heading section-heading--compact">
                 <div>
@@ -165,109 +207,130 @@ function DoctorDetailPage() {
               {doctor.schedules.length ? (
                 <div className="schedule-grid">
                   {doctor.schedules.map((schedule) => (
-                    <div
-                      key={schedule.scheduleId}
-                      className={`schedule-day schedule-day--${schedule.status}`}
-                    >
+                    <div key={schedule.scheduleId} className={`schedule-day schedule-day--${schedule.status}`}>
                       <div className="schedule-day__header">
                         <strong>{schedule.label}</strong>
-                        <span>
-                          {schedule.availableCount > 0
-                            ? `${schedule.hoursLabel} • còn ${schedule.availableCount}/${schedule.totalCount} slot`
-                            : `${schedule.hoursLabel} • chưa còn slot trống`}
-                        </span>
+                        <span>{schedule.hoursLabel} • {schedule.availableCount} slot trống</span>
                       </div>
 
                       <div className="slot-list">
-                        {schedule.slots.length ? (
-                          schedule.slots.map((slot) => (
+                        {schedule.slots.map((slot) => {
+                          const isSelected =
+                            selected?.scheduleId === schedule.scheduleId &&
+                            selected?.time === slot.time;
+
+                          return (
                             <span
-                              key={`${schedule.scheduleId}-${slot.time}`}
+                              key={slot.time}
+                              onClick={() => {
+                                if (slot.status !== "available") return;
+                                setSelected({
+                                  scheduleId: schedule.scheduleId,
+                                  time: slot.time,
+                                  workDate: schedule.workDate,
+                                });
+                              }}
                               className={
                                 slot.status === "available"
-                                  ? "slot slot--action"
-                                  : slot.status === "booked"
-                                    ? "slot slot--booked"
-                                    : "slot slot--off"
+                                  ? isSelected ? "slot slot--selected" : "slot slot--action"
+                                  : slot.status === "booked" ? "slot slot--booked" : "slot slot--off"
                               }
                             >
                               {slot.time}
                             </span>
-                          ))
-                        ) : (
-                          <span className="slot slot--off">Chưa mở slot</span>
-                        )}
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="empty-state">
-                  <h2>Chưa có lịch làm việc</h2>
-                  <p>Bác sĩ này hiện chưa có lịch làm việc được trả về từ backend.</p>
+                  <p>Bác sĩ hiện chưa có lịch làm việc.</p>
                 </div>
               )}
             </article>
 
-            <article className="content-card">
+            {/* ACTIONS - ĐẶT LỊCH (Nâng cấp UI) */}
+            {selected && (
+              <div className="booking-actions-bar animate-fade-in">
+                <div className="booking-info">
+                  <p>Đang chọn: <strong>{selected.time}</strong> ngày <strong>{selected.workDate}</strong></p>
+                </div>
+                <div className="button-group">
+                  <button
+                    className="button button--primary"
+                    disabled={booking}
+                    onClick={() => handleBook("self")}
+                  >
+                    {booking ? "Đang xử lý..." : "Đặt lịch cho tôi"}
+                  </button>
+                  <button
+                    className="button button--outline"
+                    disabled={booking}
+                    onClick={() => handleBook("relative")}
+                  >
+                    Đặt hộ người thân
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* REVIEWS CARD */}
+            <article className="content-card" style={{ marginTop: 20 }}>
               <div className="section-heading section-heading--compact">
                 <div>
                   <span className="eyebrow">Đánh giá</span>
                   <h2>Nhận xét từ bệnh nhân</h2>
                 </div>
               </div>
-
-              {doctor.reviews.length ? (
+              {doctor.reviews?.length ? (
                 <div className="review-list">
-                  {doctor.reviews.map((review) => (
-                    <article key={review.id} className="review-card">
-                      <div className="review-card__header">
-                        <strong>{review.patientName}</strong>
-                        <span>{review.createdAt}</span>
+                  {doctor.reviews.map((r, i) => (
+                    <div key={i} className="review-item">
+                      <div className="review-item__header">
+                        <strong>{r.patientName || r.userName}</strong>
+                        <span>⭐ {r.rating}/5</span>
                       </div>
-                      <p>{review.comment}</p>
-                      <small>Điểm đánh giá: {review.rating}/5</small>
-                    </article>
+                      <p>{r.comment}</p>
+                      <small>{r.createdAt}</small>
+                    </div>
                   ))}
                 </div>
               ) : (
                 <div className="empty-state">
-                  <h2>Chưa có đánh giá</h2>
-                  <p>Phần nhận xét sẽ xuất hiện khi backend có dữ liệu review.</p>
+                  <p>Chưa có đánh giá nào</p>
                 </div>
               )}
             </article>
           </div>
 
+          {/* SIDEBAR (From File 2 style) */}
           <aside className="profile-side">
             <article className="sidebar-card">
               <span className="eyebrow">Nơi công tác</span>
               <h3>{doctor.clinicName}</h3>
               <p>{doctor.clinicAddress}</p>
-              <p>Số điện thoại phòng khám: {doctor.clinicPhone}</p>
+              <p><strong>SĐT:</strong> {doctor.clinicPhone}</p>
             </article>
 
             <article className="sidebar-card">
               <span className="eyebrow">Thông tin cá nhân</span>
-              <p>Giới tính: {doctor.gender}</p>
-              <p>Ngày sinh: {doctor.dateOfBirth}</p>
-              <p>Địa chỉ liên hệ: {doctor.address}</p>
+              <p><strong>Giới tính:</strong> {doctor.gender}</p>
+              <p><strong>Ngày sinh:</strong> {doctor.dateOfBirth}</p>
+              <p><strong>Địa chỉ:</strong> {doctor.address}</p>
             </article>
 
-            <article className="sidebar-card">
-              <span className="eyebrow">Chuyên khoa tại cơ sở</span>
-              {doctor.clinicSpecialties.length ? (
+            {doctor.clinicSpecialties?.length > 0 && (
+              <article className="sidebar-card">
+                <span className="eyebrow">Chuyên khoa tại cơ sở</span>
                 <div className="tag-row">
-                  {doctor.clinicSpecialties.map((specialty) => (
-                    <span key={specialty} className="tag">
-                      {specialty}
-                    </span>
+                  {doctor.clinicSpecialties.map((spec) => (
+                    <span key={spec} className="tag">{spec}</span>
                   ))}
                 </div>
-              ) : (
-                <p>Phòng khám chưa cập nhật danh mục chuyên khoa.</p>
-              )}
-            </article>
+              </article>
+            )}
           </aside>
         </div>
       </section>

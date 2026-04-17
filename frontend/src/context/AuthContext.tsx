@@ -51,9 +51,7 @@ function mapApiAuthUser(apiUser: ApiAuthUser, fallbackProvider: AuthUser["provid
 function readSessionFromStorage() {
   const session = localStorage.getItem(SESSION_STORAGE_KEY);
 
-  if (!session) {
-    return null;
-  }
+  if (!session) return null;
 
   try {
     return JSON.parse(session) as AuthUser;
@@ -70,34 +68,11 @@ async function readAuthPayload(response: Response) {
     | null;
 }
 
-function getAuthErrorMessage(
-  payload: Awaited<ReturnType<typeof readAuthPayload>>,
-  fallback: string
-) {
+function getAuthErrorMessage(payload: any, fallback: string) {
   const apiMessage =
     payload && "error" in payload ? payload.error : payload?.message;
 
-  switch (apiMessage) {
-    case "Missing credentials":
-      return "Vui lòng nhập email hoặc số điện thoại và mật khẩu.";
-    case "User not found":
-    case "Wrong password":
-      return "Tài khoản hoặc mật khẩu không đúng.";
-    case "Missing required fields":
-      return "Vui lòng nhập đầy đủ thông tin đăng ký.";
-    case "Missing confirmPassword":
-      return "Vui lòng nhập xác nhận mật khẩu.";
-    case "Passwords do not match":
-      return "Mật khẩu xác nhận chưa khớp.";
-    case "Email already exists":
-      return "Email này đã được đăng ký.";
-    case "Phone already exists":
-      return "Số điện thoại này đã được sử dụng.";
-    case "Invalid dateOfBirth":
-      return "Ngày sinh không hợp lệ.";
-    default:
-      return apiMessage || fallback;
-  }
+  return apiMessage || fallback;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -110,8 +85,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (user) {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user));
+
+      // ✅ FIX QUAN TRỌNG: luôn lưu userId riêng cho booking
+      localStorage.setItem("userId", String(user.id));
     } else {
       localStorage.removeItem(SESSION_STORAGE_KEY);
+      localStorage.removeItem("userId");
     }
   }, [user]);
 
@@ -136,55 +115,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    setUser(mapApiAuthUser(payload.user, "credentials"));
+    const mappedUser = mapApiAuthUser(payload.user, "credentials");
+    setUser(mappedUser);
+
+    // ✅ FIX
+    localStorage.setItem("userId", String(mappedUser.id));
   };
 
   const register = async (input: RegisterInput) => {
-    const email = input.email.trim().toLowerCase();
-    const firstName = input.firstName.trim();
-    const lastName = input.lastName.trim();
-    const phone = input.phone.trim();
-    const gender = input.gender.trim();
-    const dateOfBirth = input.dateOfBirth.trim();
-    const address = input.address.trim();
-
-    if (
-      !email ||
-      !firstName ||
-      !lastName ||
-      !phone ||
-      !gender ||
-      !dateOfBirth ||
-      !address
-    ) {
-      throw new Error("Vui lòng nhập đầy đủ thông tin đăng ký.");
-    }
-
-    if (input.password !== input.confirmPassword) {
-      throw new Error("Mật khẩu xác nhận chưa khớp.");
-    }
-
-    if (input.password.length < 6) {
-      throw new Error("Mật khẩu cần tối thiểu 6 ký tự.");
-    }
-
     const response = await fetch(REGISTER_AUTH_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify({
-        email,
-        firstName,
-        lastName,
-        phone,
-        gender,
-        dateOfBirth,
-        address,
-        password: input.password,
-        confirmPassword: input.confirmPassword,
-      }),
+      body: JSON.stringify(input),
     });
 
     const payload = await readAuthPayload(response);
@@ -195,7 +140,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    setUser(mapApiAuthUser(payload.user, "credentials"));
+    const mappedUser = mapApiAuthUser(payload.user, "credentials");
+    setUser(mappedUser);
+
+    // ✅ FIX
+    localStorage.setItem("userId", String(mappedUser.id));
   };
 
   const loginWithGoogle = async (credential: string) => {
@@ -208,25 +157,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ credential }),
     });
 
-    const payload = (await response.json().catch(() => null)) as
-      | ApiAuthResponse
-      | { error?: string }
-      | null;
+    const payload = await response.json().catch(() => null);
 
     if (!response.ok || !payload || !("user" in payload)) {
-      const errorMessage =
-        payload && "error" in payload ? payload.error : undefined;
-
-      throw new Error(
-        errorMessage ?? "Không thể đăng nhập bằng Google vào lúc này."
-      );
+      throw new Error("Không thể đăng nhập bằng Google.");
     }
 
-    setUser(mapApiAuthUser(payload.user, "google"));
+    const mappedUser = mapApiAuthUser(payload.user, "google");
+    setUser(mappedUser);
+
+    // ✅ FIX
+    localStorage.setItem("userId", String(mappedUser.id));
   };
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem("userId");
   };
 
   return (
