@@ -25,12 +25,18 @@ function DoctorDetailPage() {
   const [showProxyModal, setShowProxyModal] = useState(false);
 
   const [proxyForm, setProxyForm] = useState({
-      name: "",
+      firstName: "",
+      lastName: "",
       email: "",
       phone: "",
       gender: "",
       address: "",
     });
+  const mapGender = (g: string) => {
+      if (g === "male") return "Nam";
+      if (g === "female") return "Nữ";
+      return "";
+    };
 
   useEffect(() => {
     let cancelled = false;
@@ -66,36 +72,104 @@ function DoctorDetailPage() {
     };
   }, [doctorId]);
 
-  // =========================
-  // LOGIC ĐẶT LỊCH (GIỮ NGUYÊN)
-  // =========================
   const handleBook = async (mode: "self" | "relative") => {
-    if (!doctor || !selected) return;
+  if (!doctor || !selected) return;
 
-    try {
-      setBooking(true);
-      const userId = user?.id;
-      if (!userId) {
-        alert("Bạn chưa đăng nhập");
-        return;
-      }
+  const userId = user?.id;
+  if (!userId) {
+    alert("Bạn chưa đăng nhập");
+    return;
+  }
 
-      await bookAppointment({
-        mode: mode,
-        userId: Number(userId),
-        doctorId: doctor.doctorId,
-        scheduleId: selected.scheduleId,
-        appointmentDate: `${selected.workDate}T${selected.time}:00`,
-      });
+  try {
+    setBooking(true);
 
-      alert(mode === "self" ? "Đặt lịch thành công!" : "Đã chuyển hướng sang form đặt hộ thành công!");
+    const payload: any = {
+      userId: Number(userId),
+      doctorId: doctor.doctorId,
+      scheduleId: selected.scheduleId,
+      appointmentDate: `${selected.workDate}T${selected.time}:00`,
+    };
+
+    // =========================
+    // SELF BOOKING
+    // =========================
+    if (mode === "self") {
+      await bookAppointment(payload);
+      alert("Đặt lịch thành công!");
       setSelected(null);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Lỗi đặt lịch");
-    } finally {
-      setBooking(false);
+      return;
     }
-  };
+
+    // =========================
+    // PROXY VALIDATION (CHẶN TRIỆT ĐỂ)
+    // =========================
+    const {
+      firstName,
+      lastName,
+      email,
+      phone,
+      gender,
+      address,
+    } = proxyForm;
+
+    const requiredMissing =
+      !firstName?.trim() ||
+      !lastName?.trim() ||
+      !email?.trim() ||
+      !phone?.trim() ||
+      !gender || gender.trim() === "" ||
+      !address?.trim();
+
+    if (requiredMissing) {
+      alert("Vui lòng nhập đầy đủ thông tin người được đặt hộ");
+      return;
+    }
+
+    // validate email basic
+    if (!email.includes("@")) {
+      alert("Email không hợp lệ");
+      return;
+    }
+
+    // validate phone basic
+    if (phone.length < 9) {
+      alert("Số điện thoại không hợp lệ");
+      return;
+    }
+
+    payload.isProxy = true;
+    payload.patientInfo = {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone.trim(),
+      gender: mapGender(gender),
+      address: address.trim(),
+    };
+
+    await bookAppointment(payload);
+
+    alert("Đặt lịch thành công!");
+    setSelected(null);
+    setShowProxyModal(false);
+    setProxyForm({
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
+      gender: "",
+      address: "",
+    });
+
+  } catch (e) {
+    alert(e instanceof Error ? e.message : "Lỗi đặt lịch");
+  } finally {
+    setBooking(false);
+  }
+};
+
+
 
   if (loading) {
     return (
@@ -268,7 +342,7 @@ function DoctorDetailPage() {
                   <button
                     className="button button--outline"
                     disabled={booking}
-                    onClick={() => handleBook("relative")}
+                    onClick={() => setShowProxyModal(true)}
                   >
                     Đặt hộ người thân
                   </button>
@@ -334,7 +408,97 @@ function DoctorDetailPage() {
           </aside>
         </div>
       </section>
+      {showProxyModal && (
+  <div className="modal-overlay">
+    <div className="modal-card animate-fade-in">
+
+      <div className="modal-header">
+        <h3>Đặt lịch cho người thân</h3>
+        <button onClick={() => setShowProxyModal(false)}>✕</button>
+      </div>
+
+      <div className="modal-body">
+
+                <input
+          className="input"
+          placeholder="Họ"
+          value={proxyForm.lastName}
+          onChange={(e) =>
+            setProxyForm({ ...proxyForm, lastName: e.target.value })
+          }
+        />
+
+        <input
+          className="input"
+          placeholder="Tên"
+          value={proxyForm.firstName}
+          onChange={(e) =>
+            setProxyForm({ ...proxyForm, firstName: e.target.value })
+          }
+        />
+        <input
+          className="input"
+          placeholder="Email *"
+          value={proxyForm.email}
+          onChange={(e) =>
+            setProxyForm({ ...proxyForm, email: e.target.value })
+          }
+        />
+
+        <input
+          className="input"
+          placeholder="Số điện thoại"
+          value={proxyForm.phone}
+          onChange={(e) =>
+            setProxyForm({ ...proxyForm, phone: e.target.value })
+          }
+        />
+
+        <select
+          className="input"
+          value={proxyForm.gender}
+          onChange={(e) =>
+            setProxyForm({ ...proxyForm, gender: e.target.value })
+          }
+        >
+          <option value="">Chọn giới tính</option>
+          <option value="male">Nam</option>
+          <option value="female">Nữ</option>
+        </select>
+
+        <input
+          className="input"
+          placeholder="Địa chỉ"
+          value={proxyForm.address}
+          onChange={(e) =>
+            setProxyForm({ ...proxyForm, address: e.target.value })
+          }
+        />
+
+      </div>
+
+      <div className="modal-actions">
+        <button
+          className="button button--outline"
+          onClick={() => setShowProxyModal(false)}
+        >
+          Hủy
+        </button>
+
+        <button
+          className="button button--primary"
+          onClick={() => handleBook("relative")}
+          disabled={booking}
+        >
+          {booking ? "Đang xử lý..." : "Xác nhận đặt"}
+        </button>
+      </div>
+
     </div>
+  </div>
+)}
+    </div>
+
   );
 }
 

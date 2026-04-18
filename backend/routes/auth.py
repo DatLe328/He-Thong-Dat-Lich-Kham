@@ -7,6 +7,8 @@ from sqlalchemy import or_
 from db.db import db
 from models.user import User, UserRole
 
+from models import Patient
+
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
 
@@ -117,12 +119,22 @@ def register():
         gender=gender,
         dateOfBirth=date_of_birth,
         address=address,
-        role=UserRole.PATIENT.value
+        role=UserRole.PATIENT
     )
 
     user.set_password(password)
 
     db.session.add(user)
+    db.session.flush()
+
+    patient = Patient(
+        userID=user.userID,
+        fullName=f"{user.firstName} {user.lastName}",
+        phone=user.phone
+    )
+
+    db.session.add(patient)
+
     db.session.commit()
 
     return jsonify({

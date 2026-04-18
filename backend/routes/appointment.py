@@ -51,7 +51,7 @@ def create_appointment():
     mode = d.get("mode", "self")
     is_proxy = mode == "proxy"
 
-    patient_info = d.get("patient") if is_proxy else None
+    patient_info = d.get("patientInfo") if is_proxy else None
 
     # =========================
     # BUILD REASON (FIX QUAN TRỌNG)
