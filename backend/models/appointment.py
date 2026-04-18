@@ -18,7 +18,8 @@ class Appointment(db.Model):
 
     appointmentId = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
-    patientId = db.Column(db.Integer, db.ForeignKey("patients.patientID"), nullable=False)
+    patientId = db.Column(db.Integer, db.ForeignKey("patients.patientID"), nullable=True)
+
 
     doctorId = db.Column(db.Integer, db.ForeignKey("doctors.doctorID", ondelete="SET NULL"), nullable=True)
 

@@ -1,5 +1,5 @@
 export async function bookAppointment(payload: {
-  userId: number;
+  userId?: number; // ✅ cho phép optional
   doctorId: number;
   scheduleId: number;
   appointmentDate: string;
@@ -14,19 +14,22 @@ export async function bookAppointment(payload: {
   };
 }) {
   const body: any = {
-    userId: payload.userId,
     doctorId: payload.doctorId,
     scheduleId: payload.scheduleId,
     appointmentDate: payload.appointmentDate,
-
-    // ✅ FIX QUAN TRỌNG: backend cần mode
-    mode: payload.isProxy ? "proxy" : "self",
   };
 
   // =========================
-  // PROXY BOOKING
+  // USER LOGIN
   // =========================
-  if (payload.isProxy && payload.patientInfo) {
+  if (payload.userId) {
+    body.userId = payload.userId;
+  }
+
+  // =========================
+  // 🔥 QUAN TRỌNG: GỬI patientInfo CHO CẢ GUEST + PROXY
+  // =========================
+  if (payload.patientInfo) {
     const p = payload.patientInfo;
 
     body.patientInfo = {
@@ -36,11 +39,17 @@ export async function bookAppointment(payload: {
       phone: p.phone || "",
       gender: p.gender || "",
       address: p.address || "",
-
-      // ✅ backend DAO có thể dùng name fallback
-      name: `${p.firstName} ${p.lastName || ""}`.trim(),
     };
   }
+
+  // =========================
+  // PROXY FLAG (optional)
+  // =========================
+  if (payload.isProxy) {
+    body.mode = "proxy";
+  }
+
+  console.log("FINAL BODY:", body); // 🔥 debug
 
   const res = await fetch("/api/appointments", {
     method: "POST",
