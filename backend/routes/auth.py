@@ -56,8 +56,13 @@ def _serialize_auth_user(user, provider="credentials", avatar=None):
 
 def _verify_google_credential(credential, client_id):
 
-    from google.auth.transport import requests as google_requests
-    from google.oauth2 import id_token
+    try:
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token
+    except ImportError as exc:
+        raise RuntimeError(
+            "Missing backend dependency: requests. Run `pip install -r backend/requirements.txt`."
+        ) from exc
 
     return id_token.verify_oauth2_token(
         credential,

@@ -22,8 +22,8 @@ class Appointment(db.Model):
     status          = db.Column(db.Enum(AppointmentStatus), default=AppointmentStatus.PENDING, nullable=False)
     cancelReason    = db.Column(db.Text, nullable=True)
 
-    createdAt       = db.Column(db.DateTime, server_default=func.now(), nullable=False)
-    updatedAt       = db.Column(db.DateTime, onupdate=func.now(), nullable=True)
+    createdAt       = db.Column(db.DateTime, default=datetime.utcnow, server_default=func.now(), nullable=False)
+    updatedAt       = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     patient  = db.relationship("Patient", back_populates="appointments")
     doctor   = db.relationship("Doctor", back_populates="appointments")

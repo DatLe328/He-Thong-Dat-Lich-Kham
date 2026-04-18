@@ -1,6 +1,9 @@
 import os
 from dotenv import load_dotenv
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 load_dotenv()
 
 class Config:
@@ -9,7 +12,7 @@ class Config:
     DB_HOST = os.getenv("DB_HOST") 
     DB_PORT = os.getenv("DB_PORT") 
     DB_NAME = os.getenv("DB_NAME") 
-    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID") or os.getenv("VITE_GOOGLE_CLIENT_ID")
 
     SQLALCHEMY_DATABASE_URI = (
         f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}"
