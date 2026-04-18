@@ -160,7 +160,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const payload = await response.json().catch(() => null);
 
     if (!response.ok || !payload || !("user" in payload)) {
-      throw new Error("Không thể đăng nhập bằng Google.");
+      throw new Error(
+        getAuthErrorMessage(payload, "Không thể đăng nhập bằng Google.")
+      );
     }
 
     const mappedUser = mapApiAuthUser(payload.user, "google");
