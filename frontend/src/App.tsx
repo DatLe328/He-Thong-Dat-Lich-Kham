@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./components/AppShell";
 import AuthPage from "./pages/AuthPage";
+import DoctorAppointmentsPage from "./pages/DoctorAppointmentsPage";
 import DoctorDetailPage from "./pages/DoctorDetailPage";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
@@ -14,6 +15,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/auth" element={<AuthPage />} />
         <Route path="/doctors/:doctorId" element={<DoctorDetailPage />} />
+        <Route path="/doctors/:doctorId/appointments" element={<DoctorAppointmentsPage />} />
         <Route path="/search" element={<SearchResultsPage />} />
         <Route
           path="/login"

@@ -127,7 +127,10 @@ def reschedule_appointment(doctor_id, appt_id):
     d        = request.get_json(silent=True) or {}
     new_date = _datetime(d.get("appointmentDate"))
     if not new_date:
-        return jsonify({"success": False, "message": "appointmentDate không hợp lệ (ISO format)."}), 400
+        return jsonify({"success": False, "message": "appointmentDate không hợp lệ (ISO format: YYYY-MM-DDTHH:mm:ss)."}), 400
+
+    if new_date < datetime.now():
+        return jsonify({"success": False, "message": "Không thể dời sang ngày trong quá khứ."}), 400
 
     appt = DoctorDAO.reschedule_appointment(
         appt_id, new_date, new_schedule_id=d.get("scheduleId")
@@ -135,7 +138,7 @@ def reschedule_appointment(doctor_id, appt_id):
     if not appt:
         return jsonify({"success": False, "message": "Không tìm thấy lịch hẹn."}), 404
 
-    return jsonify({"success": True, "message": "Đã dời lịch hẹn.", "data": appt.to_dict()}), 200
+    return jsonify({"success": True, "data": appt.to_dict()}), 200
 
 
 @doctor_bp.route("/<int:doctor_id>/appointments/<int:appt_id>/cancel", methods=["PATCH"])
@@ -148,7 +151,7 @@ def cancel_appointment(doctor_id, appt_id):
     if not appt:
         return jsonify({"success": False, "message": "Không tìm thấy lịch hẹn."}), 404
 
-    return jsonify({"success": True, "message": "Đã huỷ lịch hẹn.", "data": appt.to_dict()}), 200
+    return jsonify({"success": True, "data": appt.to_dict()}), 200
 
 
 @doctor_bp.route("/<int:doctor_id>/schedules", methods=["GET"])

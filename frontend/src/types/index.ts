@@ -149,6 +149,43 @@ export type ApiDoctorReviewsResponse = {
   avgRating: number;
 };
 
+export type ApiAppointmentStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+
+export type ApiDoctorAppointment = {
+  appointmentId: number;
+  patientId: number | null;
+  doctorId: number | null;
+  scheduleId: number | null;
+  clinicId: number | null;
+  appointmentDate: string;
+  reason: string | null;
+  status: ApiAppointmentStatus;
+  cancelReason: string | null;
+  proxyFirstName: string | null;
+  proxyLastName: string | null;
+  proxyPhone: string | null;
+  proxyEmail: string | null;
+  proxyGender: string | null;
+  proxyAddress: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+};
+
+export type ApiDoctorAppointmentsResponse = {
+  success: boolean;
+  data: ApiDoctorAppointment[];
+  total: number;
+};
+
+export type DoctorAppointment = ApiDoctorAppointment & {
+  appointmentDateLabel: string;
+  appointmentTimeLabel: string;
+  statusLabel: string;
+  contactName: string;
+  contactLabel: string;
+  isUpcoming: boolean;
+};
+
 export type DirectoryDoctor = {
   id: string;
   doctorId: number;

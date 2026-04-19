@@ -9,6 +9,7 @@ import { useAuth } from "../context/AuthContext";
 function DoctorDetailPage() {
   const { doctorId } = useParams();
   const { user } = useAuth();
+  const canManageAppointments = user?.role === "DOCTOR" || user?.role === "ADMIN";
 
   const [doctor, setDoctor] = useState<DoctorProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -259,6 +260,11 @@ function DoctorDetailPage() {
               <strong>{doctor.nextAvailable}</strong>
               <span>Lịch gần nhất</span>
             </div>
+            {canManageAppointments && (
+              <Link to={`/doctors/${doctor.doctorId}/appointments`} className="button button--ghost button--block">
+                Quản lý lịch hẹn
+              </Link>
+            )}
             <Link to="/search" className="button button--light button--block">
               Quay lại tìm kiếm
             </Link>
@@ -391,7 +397,7 @@ function DoctorDetailPage() {
                   {doctor.reviews.map((r, i) => (
                     <div key={i} className="review-item">
                       <div className="review-item__header">
-                        <strong>{r.patientName || r.userName}</strong>
+                        <strong>{r.patientName}</strong>
                         <span>⭐ {r.rating}/5</span>
                       </div>
                       <p>{r.comment}</p>
