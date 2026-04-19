@@ -6,6 +6,7 @@ from routes.doctor import doctor_bp
 from routes.auth import auth_bp
 from routes.appointment import appointment_bp
 from routes.patient import patient_bp
+from routes.statistics import statistics_bp
 
 def create_app(init_db=False):
     app = Flask(__name__)
@@ -23,6 +24,7 @@ def create_app(init_db=False):
     app.register_blueprint(auth_bp)
     app.register_blueprint(appointment_bp)
     app.register_blueprint(patient_bp)
+    app.register_blueprint(statistics_bp)
 
     return app
 
