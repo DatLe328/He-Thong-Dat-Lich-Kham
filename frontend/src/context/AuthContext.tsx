@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) {
       localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user));
 
-      // ✅ FIX QUAN TRỌNG: luôn lưu userId riêng cho booking
+
       localStorage.setItem("userId", String(user.id));
     } else {
       localStorage.removeItem(SESSION_STORAGE_KEY);

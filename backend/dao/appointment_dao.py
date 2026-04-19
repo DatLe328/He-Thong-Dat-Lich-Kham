@@ -1,47 +1,65 @@
-from __future__ import annotations
-from datetime import datetime
 from db.db import db
 from models.appointment import Appointment, AppointmentStatus
 from models.schedule import Schedule
 from models.notification import Notification
 from models.patient import Patient
-from models.user import User
+from models.proxy_booking import ProxyBooking
 
 
 class AppointmentDAO:
+
     @staticmethod
-    def create(userId, doctorId, appointmentDate, scheduleId=None, clinicId=None, reason=None, isProxy=False,
-               patientInfo=None):
-        if not isProxy:
+    def create(
+        userId=None,
+        doctorId=None,
+        appointmentDate=None,
+        scheduleId=None,
+        clinicId=None,
+        reason=None,
+        isProxy=False,
+        patientInfo=None
+    ):
+
+        # =========================
+        # LOGIN MODE / GUEST MODE
+        # =========================
+        patient = None
+
+        if userId:
             patient = Patient.query.filter_by(userID=userId).first()
             if not patient:
-                patient = Patient(userID=userId)
-                db.session.add(patient)
-                db.session.flush()
+                return None, "Không tìm thấy bệnh nhân"
         else:
-            if not patientInfo: return None, "Thiếu thông tin bệnh nhân"
-            email = patientInfo.get("email")
-            first_name = patientInfo.get("firstName")
-            if not email or not first_name: return None, "Thiếu thông tin"
+            if not patientInfo:
+                return None, "Thiếu thông tin người đặt lịch"
 
-            user = User.query.filter_by(email=email).first()
-            if not user:
-                user = User(email=email, firstName=first_name, lastName=patientInfo.get("lastName"), role="PATIENT")
-                db.session.add(user)
-                db.session.flush()
-            patient = Patient.query.filter_by(userID=user.userID).first()
-            if not patient:
-                patient = Patient(userID=user.userID)
-                db.session.add(patient)
-                db.session.flush()
-
+        # =========================
+        # CHECK SCHEDULE
+        # =========================
         if scheduleId:
-            conflict_msg = AppointmentDAO._check_slot_conflict(scheduleId, appointmentDate)
-            if conflict_msg: return None, conflict_msg
+            schedule = Schedule.query.get(scheduleId)
+            if not schedule or not schedule.isAvailable:
+                return None, "Lịch không khả dụng"
+
+        # =========================
+        # CHECK TRÙNG SLOT (FIX 409)
+        # =========================
+        if scheduleId:
+            existing = Appointment.query.filter(
+                Appointment.scheduleId == scheduleId,
+                Appointment.appointmentDate == appointmentDate,
+                Appointment.status != AppointmentStatus.CANCELLED
+            ).first()
+
+            if existing:
+                return None, "Khung giờ này đã được đặt"
 
         try:
+            # =========================
+            # CREATE APPOINTMENT
+            # =========================
             appt = Appointment(
-                patientId=patient.patientID,
+                patientId=patient.patientID if patient and not isProxy else None,
                 doctorId=doctorId,
                 scheduleId=scheduleId,
                 clinicId=clinicId,
@@ -49,35 +67,41 @@ class AppointmentDAO:
                 reason=reason,
                 status=AppointmentStatus.PENDING
             )
+
             db.session.add(appt)
             db.session.flush()
 
-            notif = Notification(
-                userId=patient.userID,
-                appointmentId=appt.appointmentId,
-                message=f"Lịch hẹn #{appt.appointmentId} đã được tạo.",
-                channel="IN_APP"
-            )
-            db.session.add(notif)
+            # =========================
+            # PROXY BOOKING
+            # =========================
+            if isProxy and patientInfo:
+                proxy = ProxyBooking(
+                    appointmentId=appt.appointmentId,
+                    firstName=(patientInfo.get("firstName") or "").strip(),
+                    lastName=(patientInfo.get("lastName") or "").strip(),
+                    phone=patientInfo.get("phone"),
+                    email=patientInfo.get("email"),
+                    gender=patientInfo.get("gender"),
+                    address=patientInfo.get("address")
+                )
+                db.session.add(proxy)
+
+            # =========================
+            # NOTIFICATION
+            # =========================
+            if userId:
+                notif = Notification(
+                    userId=userId,
+                    appointmentId=appt.appointmentId,
+                    message=f"Đặt lịch #{appt.appointmentId} thành công",
+                    channel="IN_APP"
+                )
+                db.session.add(notif)
+
             db.session.commit()
             return appt, None
+
         except Exception as e:
             db.session.rollback()
+            print("DAO ERROR:", e)  # 🔥 debug thật
             return None, str(e)
-
-    @staticmethod
-    def _check_slot_conflict(schedule_id, appointment_date):
-        schedule = Schedule.query.get(schedule_id)
-        if not schedule or not schedule.isAvailable: return "Lịch không khả dụng"
-        if appointment_date.date() != schedule.workDate: return "Sai ngày"
-
-        appt_time = appointment_date.time()
-        if not (schedule.startTime <= appt_time < schedule.endTime): return "Ngoài giờ làm việc"
-
-        conflicts = Appointment.query.filter(
-            Appointment.scheduleId == schedule_id,
-            Appointment.status != AppointmentStatus.CANCELLED
-        ).all()
-        for c in conflicts:
-            if c.appointmentDate.time() == appt_time: return "Khung giờ đã được đặt"
-        return None

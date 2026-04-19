@@ -75,8 +75,8 @@ function AuthPage() {
     try {
       await register({
         email,
-        firstName,
         lastName,
+        firstName,
         phone,
         gender,
         dateOfBirth,

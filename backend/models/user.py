@@ -32,8 +32,12 @@ class User(db.Model):
                                cascade="all, delete-orphan")
     patient = db.relationship("Patient", back_populates="user", uselist=False,
                                cascade="all, delete-orphan")
-    notifications = db.relationship("Notification", back_populates="user",
-                                     cascade="all, delete-orphan")
+    notifications = db.relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy=True
+    )
 
     def set_password(self, raw: str):
         self.passwordHash = generate_password_hash(raw)

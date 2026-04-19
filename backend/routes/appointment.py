@@ -38,40 +38,62 @@ def create_appointment():
     if not d.get("appointmentDate"):
         return _err("Thiếu appointmentDate")
 
-    if not d.get("userId"):
-        return _err("Thiếu userId")
-
     appt_date = _dt(d["appointmentDate"])
     if not appt_date:
         return _err("appointmentDate không hợp lệ")
 
     # =========================
-    # MODE
+    # MODE (FIX CHUẨN)
     # =========================
-    mode = d.get("mode", "self")
-    is_proxy = mode == "proxy"
+    user_id = d.get("userId")
+    patient_info = d.get("patientInfo")
+    mode = d.get("mode")  # 👈 QUAN TRỌNG
 
-    patient_info = d.get("patient") if is_proxy else None
+    is_proxy = mode == "proxy"   # ✅ chỉ proxy khi có mode
+    is_guest = not user_id and patient_info and not is_proxy
 
     # =========================
-    # BUILD REASON (FIX QUAN TRỌNG)
+    # VALIDATE
+    # =========================
+    if not user_id and not patient_info:
+        return _err("Thiếu thông tin người đặt lịch")
+
+    if (is_proxy or is_guest) and not patient_info.get("phone"):
+        return _err("Thiếu số điện thoại")
+
+    # =========================
+    # BUILD REASON
     # =========================
     reason = d.get("reason")
 
-    if is_proxy and patient_info:
-        reason = (
-            f"ĐẶT HỘ | "
-            f"Tên: {patient_info.get('name')} | "
-            f"SĐT: {patient_info.get('phone')} | "
-            f"GT: {patient_info.get('gender')} | "
-            f"ĐC: {patient_info.get('address')}"
-        )
+    if not reason:
+        if is_proxy:
+            first = patient_info.get("firstName") or ""
+            last = patient_info.get("lastName") or ""
+
+            reason = (
+                f"ĐẶT HỘ | "
+                f"Tên: {last} {first} | "
+                f"SĐT: {patient_info.get('phone', '')}"
+            )
+
+        elif is_guest:
+            first = patient_info.get("firstName") or ""
+            last = patient_info.get("lastName") or ""
+
+            reason = (
+                f"KHÁCH | "
+                f"Tên: {last} {first} | "
+                f"SĐT: {patient_info.get('phone', '')}"
+            )
+        else:
+            reason = "Đặt lịch khám"
 
     # =========================
-    # CALL DAO
+    # DAO CALL
     # =========================
     appt, err = AppointmentDAO.create(
-        userId=d["userId"],
+        userId=user_id,
         doctorId=d["doctorId"],
         appointmentDate=appt_date,
         scheduleId=d.get("scheduleId"),

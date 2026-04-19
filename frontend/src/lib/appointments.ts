@@ -1,27 +1,55 @@
 export async function bookAppointment(payload: {
-  mode: "self" | "proxy";
-  userId: number;
+  userId?: number; // ✅ cho phép optional
   doctorId: number;
   scheduleId: number;
   appointmentDate: string;
-  patient?: {
-    name: string;
+  isProxy?: boolean;
+  patientInfo?: {
+    email: string;
+    firstName: string;
+    lastName?: string;
     phone?: string;
     gender?: string;
     address?: string;
   };
 }) {
   const body: any = {
-    mode: payload.mode,
-    userId: payload.userId, // ✅ LUÔN PHẢI CÓ
     doctorId: payload.doctorId,
     scheduleId: payload.scheduleId,
     appointmentDate: payload.appointmentDate,
   };
 
-  if (payload.mode === "proxy") {
-    body.patient = payload.patient; // backend đọc "patient"
+  // =========================
+  // USER LOGIN
+  // =========================
+  if (payload.userId) {
+    body.userId = payload.userId;
   }
+
+  // =========================
+  // 🔥 QUAN TRỌNG: GỬI patientInfo CHO CẢ GUEST + PROXY
+  // =========================
+  if (payload.patientInfo) {
+    const p = payload.patientInfo;
+
+    body.patientInfo = {
+      email: p.email,
+      firstName: p.firstName,
+      lastName: p.lastName || "",
+      phone: p.phone || "",
+      gender: p.gender || "",
+      address: p.address || "",
+    };
+  }
+
+  // =========================
+  // PROXY FLAG (optional)
+  // =========================
+  if (payload.isProxy) {
+    body.mode = "proxy";
+  }
+
+  console.log("FINAL BODY:", body); // 🔥 debug
 
   const res = await fetch("/api/appointments", {
     method: "POST",
