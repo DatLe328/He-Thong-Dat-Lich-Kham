@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useDoctorDirectory } from "../context/DoctorDirectoryContext";
@@ -11,6 +12,9 @@ function AppShell() {
   const { user, logout } = useAuth();
   const { specialties } = useDoctorDirectory();
   const navigate = useNavigate();
+
+  const isDoctor = useMemo(() => user?.role === "DOCTOR", [user?.role]);
+  const doctorId = useMemo(() => (isDoctor ? user?.id : null), [isDoctor, user?.id]);
 
   return (
     <div className="app-shell">
@@ -63,6 +67,16 @@ function AppShell() {
                     </small>
                   </div>
                 </div>
+
+                {isDoctor && doctorId && (
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    onClick={() => navigate(`/doctors/${doctorId}/appointments`)}
+                  >
+                    Quản lý lịch khám
+                  </button>
+                )}
 
                 <button
                   type="button"
