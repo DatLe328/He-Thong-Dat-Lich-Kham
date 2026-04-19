@@ -35,7 +35,7 @@ class Appointment(db.Model):
     cancelReason = db.Column(db.Text, nullable=True)
 
     createdAt = db.Column(db.DateTime, default=datetime.now, nullable=False)
-    updatedAt = db.Column(db.DateTime, nullable=True)
+    updatedAt = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
 
     # relationships
     patient = db.relationship("Patient", back_populates="appointments")
@@ -73,6 +73,7 @@ class Appointment(db.Model):
             "appointmentDate": self.appointmentDate.isoformat() if self.appointmentDate else None,
             "reason": self.reason,
             "status": self.status.value,
+            "cancelReason": self.cancelReason,
 
             # proxy booking (SAFE)
             "proxyFirstName": proxy.firstName if proxy else None,
@@ -85,3 +86,8 @@ class Appointment(db.Model):
             "createdAt": self.createdAt.isoformat(),
             "updatedAt": self.updatedAt.isoformat() if self.updatedAt else None,
         }
+
+    def cancel(self, reason=None):
+        self.status = AppointmentStatus.CANCELLED
+        self.cancelReason = reason
+        self.updatedAt = datetime.now()
