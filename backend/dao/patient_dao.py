@@ -7,6 +7,12 @@ from models.patient import Patient
 from models.user import User, UserRole
 
 
+def _build_full_name(first_name: str = None, last_name: str = None) -> str:
+    return " ".join(
+        part.strip() for part in [first_name or "", last_name or ""] if part and part.strip()
+    )
+
+
 class PatientDAO:
     @staticmethod
     def create(
@@ -42,6 +48,11 @@ class PatientDAO:
 
         patient = Patient(
             userID=user.userID,
+            fullName=_build_full_name(firstName, lastName),
+            phone=phone,
+            gender=gender,
+            dateOfBirth=dateOfBirth,
+            address=address,
             insuranceId=insuranceId,
             bloodType=bloodType,
         )
@@ -94,6 +105,14 @@ class PatientDAO:
                 setattr(patient, key, value)
             elif key in user_fields and patient.user:
                 setattr(patient.user, key, value)
+                if hasattr(patient, key):
+                    setattr(patient, key, value)
+
+        if patient.user and ("firstName" in kwargs or "lastName" in kwargs):
+            patient.fullName = _build_full_name(
+                patient.user.firstName,
+                patient.user.lastName,
+            )
 
         db.session.commit()
         db.session.refresh(patient)
