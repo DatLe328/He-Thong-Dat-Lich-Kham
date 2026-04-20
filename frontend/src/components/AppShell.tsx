@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useDoctorDirectory } from "../context/DoctorDirectoryContext";
+import { resolveDoctorIdByUserId } from "../lib/doctors";
 import logoWeb from "../assets/logo-web.png";
 
 function getNavLinkClass(isActive: boolean) {
@@ -14,7 +15,36 @@ function AppShell() {
   const navigate = useNavigate();
 
   const isDoctor = useMemo(() => user?.role === "DOCTOR", [user?.role]);
-  const doctorId = useMemo(() => (isDoctor ? user?.id : null), [isDoctor, user?.id]);
+  const [doctorId, setDoctorId] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveDoctorId = async () => {
+      if (!isDoctor || !user?.id) {
+        setDoctorId(null);
+        return;
+      }
+
+      try {
+        const resolvedDoctorId = await resolveDoctorIdByUserId(user.id);
+
+        if (!cancelled) {
+          setDoctorId(resolvedDoctorId);
+        }
+      } catch {
+        if (!cancelled) {
+          setDoctorId(null);
+        }
+      }
+    };
+
+    resolveDoctorId();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isDoctor, user?.id]);
 
   return (
     <div className="app-shell">

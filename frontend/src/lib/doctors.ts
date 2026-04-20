@@ -14,12 +14,73 @@ import {
 
 const DOCTORS_ENDPOINT = "/api/doctors";
 const DOCTORS_PER_PAGE = 100;
+const DOCTOR_ID_BY_USER_ID_STORAGE_KEY = "doctor-id-by-user-id-map";
 
 type FetchDoctorsOptions = {
   keyword?: string;
   specialization?: string;
   clinicId?: number;
 };
+
+type DoctorIdByUserIdMap = Record<string, number>;
+
+function readDoctorIdByUserIdMap(): DoctorIdByUserIdMap {
+  try {
+    const raw = localStorage.getItem(DOCTOR_ID_BY_USER_ID_STORAGE_KEY);
+
+    if (!raw) {
+      return {};
+    }
+
+    const parsed = JSON.parse(raw) as DoctorIdByUserIdMap;
+
+    if (!parsed || typeof parsed !== "object") {
+      return {};
+    }
+
+    return parsed;
+  } catch {
+    return {};
+  }
+}
+
+function writeDoctorIdByUserIdMap(value: DoctorIdByUserIdMap) {
+  localStorage.setItem(DOCTOR_ID_BY_USER_ID_STORAGE_KEY, JSON.stringify(value));
+}
+
+export function getCachedDoctorIdByUserId(userId: string | number) {
+  const map = readDoctorIdByUserIdMap();
+  const cached = map[String(userId)];
+  return typeof cached === "number" ? cached : null;
+}
+
+export async function resolveDoctorIdByUserId(userId: string | number) {
+  const key = String(userId);
+  const cached = getCachedDoctorIdByUserId(key);
+
+  if (cached) {
+    return cached;
+  }
+
+  const collectedMap = readDoctorIdByUserIdMap();
+  let currentPage = 1;
+  let hasNextPage = true;
+
+  while (hasNextPage) {
+    const payload = await fetchDoctorsPage(currentPage);
+
+    payload.data.forEach((doctor) => {
+      collectedMap[String(doctor.userID)] = doctor.doctorID;
+    });
+
+    hasNextPage = payload.pagination?.hasNext ?? false;
+    currentPage += 1;
+  }
+
+  writeDoctorIdByUserIdMap(collectedMap);
+  const resolvedDoctorId = collectedMap[key];
+  return typeof resolvedDoctorId === "number" ? resolvedDoctorId : null;
+}
 
 function splitSpecialties(value: string | null | undefined) {
   if (!value) {
