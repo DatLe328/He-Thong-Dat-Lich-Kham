@@ -10,6 +10,7 @@ pipeline {
         DB_HOST="mysql"
         DB_PORT="3306"
         DB_NAME="mydb"
+        INIT_DB="true"
     }
     
     stages {

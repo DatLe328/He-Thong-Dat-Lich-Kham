@@ -17,7 +17,8 @@ def create_app(init_db=False):
     with app.app_context():
         import models
 
-        db.create_all()
+        if init_db:
+            db.create_all()
 
     app.register_blueprint(health_bp)
     app.register_blueprint(doctor_bp)
@@ -29,5 +30,5 @@ def create_app(init_db=False):
     return app
 
 if __name__ == "__main__":
-    app = create_app(init_db=True)
+    app = create_app(init_db=Config.INIT_DB)
     app.run(debug=True)
