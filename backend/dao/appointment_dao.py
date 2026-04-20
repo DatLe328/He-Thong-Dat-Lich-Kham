@@ -4,6 +4,29 @@ from models.schedule import Schedule
 from models.notification import Notification
 from models.patient import Patient
 from models.proxy_booking import ProxyBooking
+from models.user import User, UserRole
+
+
+def _build_full_name(user):
+    return " ".join(
+        part.strip()
+        for part in [user.firstName or "", user.lastName or ""]
+        if part and part.strip()
+    )
+
+
+def _create_patient_from_user(user):
+    patient = Patient(
+        userID=user.userID,
+        fullName=_build_full_name(user),
+        phone=user.phone,
+        gender=user.gender,
+        address=user.address,
+        dateOfBirth=user.dateOfBirth,
+    )
+    db.session.add(patient)
+    db.session.flush()
+    return patient
 
 
 class AppointmentDAO:
@@ -28,7 +51,12 @@ class AppointmentDAO:
         if userId:
             patient = Patient.query.filter_by(userID=userId).first()
             if not patient:
-                return None, "Không tìm thấy bệnh nhân"
+                user = db.session.get(User, userId)
+                if not user:
+                    return None, "Không tìm thấy người dùng"
+                if user.role != UserRole.PATIENT:
+                    return None, "Tài khoản không phải bệnh nhân"
+                patient = _create_patient_from_user(user)
         else:
             if not patientInfo:
                 return None, "Thiếu thông tin người đặt lịch"

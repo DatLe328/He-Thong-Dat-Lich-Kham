@@ -1,6 +1,10 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 from dao.doctor_dao import DoctorDAO
+from services.appointment_notifications import (
+    notify_appointment_cancelled,
+    notify_appointment_rescheduled,
+)
 
 doctor_bp = Blueprint("doctor", __name__, url_prefix="/api/doctors")
 
@@ -138,6 +142,8 @@ def reschedule_appointment(doctor_id, appt_id):
     if not appt:
         return jsonify({"success": False, "message": "Không tìm thấy lịch hẹn."}), 404
 
+    notify_appointment_rescheduled(appt)
+
     return jsonify({"success": True, "data": appt.to_dict()}), 200
 
 
@@ -150,6 +156,8 @@ def cancel_appointment(doctor_id, appt_id):
     appt = DoctorDAO.cancel_appointment(appt_id, reason=d.get("reason"))
     if not appt:
         return jsonify({"success": False, "message": "Không tìm thấy lịch hẹn."}), 404
+
+    notify_appointment_cancelled(appt)
 
     return jsonify({"success": True, "data": appt.to_dict()}), 200
 

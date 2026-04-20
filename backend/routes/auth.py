@@ -40,6 +40,29 @@ def _split_google_name(name, given_name=None, family_name=None):
     return " ".join(parts[:-1]), parts[-1]
 
 
+def _build_full_name(user):
+    return " ".join(
+        part.strip()
+        for part in [user.firstName or "", user.lastName or ""]
+        if part and part.strip()
+    )
+
+
+def _ensure_patient_profile(user):
+    if user.role != UserRole.PATIENT or user.patient:
+        return
+
+    patient = Patient(
+        userID=user.userID,
+        fullName=_build_full_name(user),
+        phone=user.phone,
+        gender=user.gender,
+        dateOfBirth=user.dateOfBirth,
+        address=user.address,
+    )
+    db.session.add(patient)
+
+
 def _serialize_auth_user(user, provider="credentials", avatar=None):
     data = user.to_dict()
     return {
@@ -130,7 +153,10 @@ def register():
     patient = Patient(
         userID=user.userID,
         fullName=f"{user.firstName} {user.lastName}",
-        phone=user.phone
+        phone=user.phone,
+        gender=user.gender,
+        dateOfBirth=user.dateOfBirth,
+        address=user.address,
     )
 
     db.session.add(patient)
@@ -212,7 +238,6 @@ def google_login():
     if user:
         if not user.googleID:
             user.googleID = google_id
-            db.session.commit()
     else:
         first_name, last_name = _split_google_name(
             google_profile.get("name"),
@@ -229,7 +254,10 @@ def google_login():
         )
         user.set_password(f"google-oauth:{google_id}:{secrets.token_urlsafe(24)}")
         db.session.add(user)
-        db.session.commit()
+
+    db.session.flush()
+    _ensure_patient_profile(user)
+    db.session.commit()
 
     return jsonify({
         "message": "Google login success",

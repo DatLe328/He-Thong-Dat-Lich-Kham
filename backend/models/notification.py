@@ -1,5 +1,6 @@
 from datetime import datetime
 from db.db import db
+from services.email_service import send_email
 
 
 class Notification(db.Model):
@@ -38,11 +39,12 @@ class Notification(db.Model):
 
     def send(self):
         if self.channel == "EMAIL":
-            # TODO: send email
-            pass
+            recipient = self.user.email if self.user else None
+            return send_email(recipient, "Thông báo lịch khám", self.message)
         elif self.channel == "SMS":
             # TODO: send SMS
-            pass
+            return False
+        return False
 
     def to_dict(self):
         return {

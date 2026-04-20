@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from datetime import datetime
 from dao.appointment_dao import AppointmentDAO
+from services.appointment_notifications import notify_appointment_created
 
 appointment_bp = Blueprint("appointment", __name__, url_prefix="/api/appointments")
 
@@ -105,5 +106,7 @@ def create_appointment():
 
     if err:
         return _err(err, 409)
+
+    notify_appointment_created(appt, patient_info=patient_info)
 
     return _ok(appt.to_dict(), "Đặt lịch thành công", 201)
