@@ -46,3 +46,4 @@ class Config:
 )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    INIT_DB = os.getenv("INIT_DB", "false").lower() == "true"
