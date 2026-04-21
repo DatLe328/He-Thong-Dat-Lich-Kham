@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useDoctorDirectory } from "../context/DoctorDirectoryContext";
 import { resolveDoctorIdByUserId } from "../lib/doctors";
+import ChatbotWidget from "./ChatbotWidget";
 import logoWeb from "../assets/logo-web.png";
 
 function getNavLinkClass(isActive: boolean) {
@@ -166,6 +167,8 @@ function AppShell() {
           </div>
         </div>
       </footer>
+
+      <ChatbotWidget />
     </div>
   );
 }
