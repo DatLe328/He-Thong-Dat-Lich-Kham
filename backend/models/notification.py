@@ -22,9 +22,9 @@ class Notification(db.Model):
 
     message = db.Column(db.Text, nullable=False)
     channel = db.Column(db.String(50), default="IN_APP", nullable=False)
-    createdAt = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    createdAt = db.Column(db.DateTime, default=datetime.now, nullable=False)
 
-    # RELATIONSHIPS (FIX QUAN TRỌNG)
+
     user = db.relationship(
         "User",
         back_populates="notifications",
