@@ -75,7 +75,7 @@ class Appointment(db.Model):
             "status": self.status.value,
             "cancelReason": self.cancelReason,
 
-            # proxy booking (SAFE)
+
             "proxyFirstName": proxy.firstName if proxy else None,
             "proxyLastName": proxy.lastName if proxy else None,
             "proxyPhone": proxy.phone if proxy else None,
@@ -87,7 +87,12 @@ class Appointment(db.Model):
             "updatedAt": self.updatedAt.isoformat() if self.updatedAt else None,
         }
 
-    def cancel(self, reason=None):
+    def cancel(self, reason="USER_CANCEL"):
         self.status = AppointmentStatus.CANCELLED
         self.cancelReason = reason
+        self.updatedAt = datetime.now()
+
+    def mark_no_show(self):
+        self.status = AppointmentStatus.CANCELLED
+        self.cancelReason = "NO_SHOW"
         self.updatedAt = datetime.now()

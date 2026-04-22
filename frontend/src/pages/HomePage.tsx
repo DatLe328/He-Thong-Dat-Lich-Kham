@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
 import DoctorCard from "../components/DoctorCard";
 import { useDoctorDirectory } from "../context/DoctorDirectoryContext";
+import { useAuth } from "../context/AuthContext";
 
 function HomePage() {
+  const { user } = useAuth();
   const {
     averageRating,
     error,
@@ -26,14 +28,27 @@ function HomePage() {
             </p>
 
             <div className="hero__actions">
+                {user && (
+              <div className="button button--light">
+                Xin chào {user.name}
+              </div>
+                )}
               <Link to="/search" className="button button--light">
                 Tìm kiếm bác sĩ
               </Link>
-              <Link to="/auth?tab=login" className="button button--light">
-                Đăng nhập để bắt đầu
-              </Link>
+
+              {!user ? (
+                  <Link to="/auth?tab=login" className="button button--light">
+                    Đăng nhập để bắt đầu
+                  </Link>
+                ) : (
+                  <Link to="/appointments" className="button button--light">
+                     Xem lịch hẹn
+                  </Link>
+                )}
             </div>
-    
+
+
             <div className="quick-specialties">
               {specialties.slice(0, 5).map((specialty) => (
                 <span key={specialty} className="quick-specialties__pill">

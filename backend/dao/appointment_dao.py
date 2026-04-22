@@ -44,22 +44,46 @@ class AppointmentDAO:
     ):
 
         # =========================
-        # LOGIN MODE / GUEST MODE
+        # VALIDATE
         # =========================
+        if not userId and not patientInfo:
+            return None, "Thiếu thông tin người đặt lịch"
+
         patient = None
 
+        # =========================
+        # USER LOGIN
+        # =========================
         if userId:
             patient = Patient.query.filter_by(userID=userId).first()
+
             if not patient:
                 user = db.session.get(User, userId)
                 if not user:
                     return None, "Không tìm thấy người dùng"
+
                 if user.role != UserRole.PATIENT:
                     return None, "Tài khoản không phải bệnh nhân"
+
                 patient = _create_patient_from_user(user)
+
+        # =========================
+        # GUEST / PROXY → AUTO CREATE PATIENT
+        # =========================
         else:
-            if not patientInfo:
-                return None, "Thiếu thông tin người đặt lịch"
+            phone = patientInfo.get("phone")
+
+            patient = Patient.query.filter_by(phone=phone).first()
+
+            if not patient:
+                patient = Patient(
+                    fullName=f"{patientInfo.get('lastName','')} {patientInfo.get('firstName','')}".strip(),
+                    phone=phone,
+                    gender=patientInfo.get("gender"),
+                    address=patientInfo.get("address"),
+                )
+                db.session.add(patient)
+                db.session.flush()
 
         # =========================
         # CHECK SCHEDULE
@@ -70,7 +94,7 @@ class AppointmentDAO:
                 return None, "Lịch không khả dụng"
 
         # =========================
-        # CHECK TRÙNG SLOT (FIX 409)
+        # CHECK DUPLICATE SLOT
         # =========================
         if scheduleId:
             existing = Appointment.query.filter(
@@ -83,11 +107,12 @@ class AppointmentDAO:
                 return None, "Khung giờ này đã được đặt"
 
         try:
+
             # =========================
             # CREATE APPOINTMENT
             # =========================
             appt = Appointment(
-                patientId=patient.patientID if patient and not isProxy else None,
+                patientId=patient.patientID,   # 🔥 FIX QUAN TRỌNG
                 doctorId=doctorId,
                 scheduleId=scheduleId,
                 clinicId=clinicId,
@@ -131,5 +156,5 @@ class AppointmentDAO:
 
         except Exception as e:
             db.session.rollback()
-            print("DAO ERROR:", e)  # 🔥 debug thật
+            print("DAO ERROR:", e)
             return None, str(e)

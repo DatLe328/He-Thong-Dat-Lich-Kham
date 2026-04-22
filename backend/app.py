@@ -12,6 +12,7 @@ from routes.review import review_bp
 from routes.payment import momo_bp
 from models.payment import Payment
 
+
 # flask --app app:create_app db init
 # flask --app app:create_app db migrate -m "add updatedAt to reviews"
 # flask --app app:create_app db upgrade
