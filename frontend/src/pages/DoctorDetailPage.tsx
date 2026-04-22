@@ -22,7 +22,7 @@ function DoctorDetailPage() {
   } | null>(null);
 
   const [booking, setBooking] = useState(false);
-
+  const [reason, setReason] = useState("");
   const [showProxyModal, setShowProxyModal] = useState(false);
   const [showGuestForm, setShowGuestForm] = useState(false);
   const [proxyForm, setProxyForm] = useState({

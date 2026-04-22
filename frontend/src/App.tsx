@@ -6,6 +6,8 @@ import DoctorDetailPage from "./pages/DoctorDetailPage";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
 import SearchResultsPage from "./pages/SearchResultsPage";
+import AppointmentList from "./pages/AppointmentListPage";
+
 
 
 function App() {
@@ -27,6 +29,7 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/appointments" element={<AppointmentList />} />
 
       </Route>
     </Routes>
