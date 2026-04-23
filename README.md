@@ -51,3 +51,43 @@ flask --app app:create_app db upgrade
 
 - `db.create_all()` chi tao bang moi, khong alter bang cu (neu khong drop bang truoc).
 - De them cot moi nhu `updatedAt`, hay dung migration (`db migrate` + `db upgrade`).
+
+## Chatbot tu van (Ollama)
+
+Backend da co API chatbot: `POST /api/chatbot/ask`.
+
+Chatbot chi tra loi trong pham vi:
+- Suc khoe va trieu chung thong thuong
+- Bac si, chuyen khoa, benh vien/phong kham
+- Dat lich va thong tin lich hen kham
+
+Chatbot co the doc du lieu tu backend:
+- Danh sach bac si
+- Lich hen cua benh nhan theo `userId` (neu truyen vao request)
+
+### Cau hinh bien moi truong
+
+- `OLLAMA_URL` (mac dinh: `http://localhost:11434`)
+- `OLLAMA_MODEL` (mac dinh: `llama3.1`)
+- `OLLAMA_TIMEOUT` (mac dinh: `30` giay)
+- `LLM_PROVIDER` (`ollama` hoac `openai`, mac dinh: `ollama`)
+- `OPENAI_API_KEY` (bat buoc neu dung `openai`)
+- `OPENAI_MODEL` (mac dinh: `gpt-4o-mini`)
+- `OPENAI_URL` (mac dinh: `https://api.openai.com/v1/chat/completions`)
+- `OPENAI_TIMEOUT` (mac dinh: `30` giay)
+
+Ban co the switch provider theo 2 cach:
+- Cach 1: dat `LLM_PROVIDER=openai` trong `.env`.
+- Cach 2: truyen them `provider` trong request body (`ollama` hoac `openai`).
+
+### Vi du request
+
+```bash
+curl -X POST http://localhost:5000/api/chatbot/ask \
+	-H "Content-Type: application/json" \
+	-d '{
+		"question": "Toi nen kham chuyen khoa nao khi hay dau nguc?",
+		"userId": 5,
+		"provider": "openai"
+	}'
+```

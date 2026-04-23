@@ -14,6 +14,7 @@ from routes.review import review_bp
 from routes.payment import momo_bp
 
 import os
+from routes.chatbot import chatbot_bp
 
 migrate = Migrate()
 
@@ -55,6 +56,7 @@ def create_app(init_db=False):
     app.register_blueprint(statistics_bp)
     app.register_blueprint(review_bp)
     app.register_blueprint(momo_bp)
+    app.register_blueprint(chatbot_bp)
 
     # 3. Xử lý lỗi toàn cục
     @app.errorhandler(404)
