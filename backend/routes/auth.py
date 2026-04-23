@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime
 
-from flask import Blueprint, current_app, request, jsonify
+from flask import Blueprint, current_app, request, jsonify, session
 from sqlalchemy import or_
 
 from db.db import db
@@ -77,6 +77,29 @@ def _serialize_auth_user(user, provider="credentials", avatar=None):
         "dateOfBirth": data["dateOfBirth"],
         "address": data["address"],
     }
+
+
+def _set_authenticated_user(user, provider=None, avatar=None):
+    session["auth_user_id"] = user.userID
+    session["auth_provider"] = provider or (
+        "google" if user.googleID else "credentials"
+    )
+    session["auth_avatar"] = avatar
+
+
+def _clear_authenticated_user():
+    session.pop("auth_user_id", None)
+    session.pop("auth_provider", None)
+    session.pop("auth_avatar", None)
+
+
+def _get_authenticated_user():
+    user_id = session.get("auth_user_id")
+
+    if not user_id:
+        return None
+
+    return User.query.filter_by(userID=user_id).first()
 
 
 def _verify_google_credential(credential, client_id):
@@ -162,10 +185,11 @@ def register():
     db.session.add(patient)
 
     db.session.commit()
+    _set_authenticated_user(user, provider="credentials")
 
     return jsonify({
         "message": "Register success",
-        "user": user.to_dict()
+        "user": _serialize_auth_user(user, provider="credentials")
     }), 201
 
 
@@ -193,9 +217,11 @@ def login():
     if not user.check_password(password):
         return jsonify({"error": "Wrong password"}), 401
 
+    _set_authenticated_user(user, provider="credentials")
+
     return jsonify({
         "message": "Login success",
-        "user": user.to_dict()
+        "user": _serialize_auth_user(user, provider="credentials")
     }), 200
 
 
@@ -258,12 +284,40 @@ def google_login():
     db.session.flush()
     _ensure_patient_profile(user)
     db.session.commit()
+    google_avatar = google_profile.get("picture")
+    _set_authenticated_user(user, provider="google", avatar=google_avatar)
 
     return jsonify({
         "message": "Google login success",
         "user": _serialize_auth_user(
             user,
             provider="google",
-            avatar=google_profile.get("picture"),
+            avatar=google_avatar,
         ),
     }), 200
+
+
+@auth_bp.route("/me", methods=["GET"])
+def current_user():
+    user = _get_authenticated_user()
+
+    if not user:
+        _clear_authenticated_user()
+        return jsonify({"error": "Unauthorized"}), 401
+
+    return jsonify({
+        "message": "Current user",
+        "user": _serialize_auth_user(
+            user,
+            provider=session.get("auth_provider") or (
+                "google" if user.googleID else "credentials"
+            ),
+            avatar=session.get("auth_avatar"),
+        ),
+    }), 200
+
+
+@auth_bp.route("/logout", methods=["POST"])
+def logout():
+    _clear_authenticated_user()
+    return jsonify({"message": "Logout success"}), 200
