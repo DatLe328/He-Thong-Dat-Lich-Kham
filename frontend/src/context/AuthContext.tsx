@@ -15,16 +15,18 @@ import {
 
 type AuthContextValue = {
   user: AuthUser | null;
+  isLoading: boolean;
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
-const SESSION_STORAGE_KEY = "front-clinic-session";
+const CURRENT_AUTH_ENDPOINT = "/api/auth/me";
 const LOGIN_AUTH_ENDPOINT = "/api/auth/login";
 const REGISTER_AUTH_ENDPOINT = "/api/auth/register";
 const GOOGLE_AUTH_ENDPOINT = "/api/auth/google";
+const LOGOUT_AUTH_ENDPOINT = "/api/auth/logout";
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -48,19 +50,6 @@ function mapApiAuthUser(apiUser: ApiAuthUser, fallbackProvider: AuthUser["provid
   } satisfies AuthUser;
 }
 
-function readSessionFromStorage() {
-  const session = localStorage.getItem(SESSION_STORAGE_KEY);
-
-  if (!session) return null;
-
-  try {
-    return JSON.parse(session) as AuthUser;
-  } catch {
-    localStorage.removeItem(SESSION_STORAGE_KEY);
-    return null;
-  }
-}
-
 async function readAuthPayload(response: Response) {
   return (await response.json().catch(() => null)) as
     | ApiAuthResponse
@@ -77,22 +66,45 @@ function getAuthErrorMessage(payload: any, fallback: string) {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setUser(readSessionFromStorage());
+    let cancelled = false;
+
+    const hydrateUser = async () => {
+      try {
+        const response = await fetch(CURRENT_AUTH_ENDPOINT, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          credentials: "same-origin",
+        });
+
+        const payload = await readAuthPayload(response);
+
+        if (cancelled) return;
+
+        if (response.ok && payload && "user" in payload) {
+          setUser(mapApiAuthUser(payload.user, payload.user.provider ?? "credentials"));
+        } else {
+          setUser(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setUser(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    hydrateUser();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user));
-
-
-      localStorage.setItem("userId", String(user.id));
-    } else {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
-      localStorage.removeItem("userId");
-    }
-  }, [user]);
 
   const login = async (input: LoginInput) => {
     const response = await fetch(LOGIN_AUTH_ENDPOINT, {
@@ -101,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+      credentials: "same-origin",
       body: JSON.stringify({
         identifier: input.identifier.trim().toLowerCase(),
         password: input.password,
@@ -117,9 +130,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const mappedUser = mapApiAuthUser(payload.user, "credentials");
     setUser(mappedUser);
-
-    // ✅ FIX
-    localStorage.setItem("userId", String(mappedUser.id));
   };
 
   const register = async (input: RegisterInput) => {
@@ -129,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+      credentials: "same-origin",
       body: JSON.stringify(input),
     });
 
@@ -142,9 +153,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const mappedUser = mapApiAuthUser(payload.user, "credentials");
     setUser(mappedUser);
-
-    // ✅ FIX
-    localStorage.setItem("userId", String(mappedUser.id));
   };
 
   const loginWithGoogle = async (credential: string) => {
@@ -154,6 +162,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+      credentials: "same-origin",
       body: JSON.stringify({ credential }),
     });
 
@@ -167,19 +176,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const mappedUser = mapApiAuthUser(payload.user, "google");
     setUser(mappedUser);
-
-    // ✅ FIX
-    localStorage.setItem("userId", String(mappedUser.id));
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("userId");
+  const logout = async () => {
+    try {
+      await fetch(LOGOUT_AUTH_ENDPOINT, {
+        method: "POST",
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      });
+    } finally {
+      setUser(null);
+    }
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, login, register, loginWithGoogle, logout }}
+      value={{ user, isLoading, login, register, loginWithGoogle, logout }}
     >
       {children}
     </AuthContext.Provider>

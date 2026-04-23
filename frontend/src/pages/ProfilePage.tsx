@@ -1,8 +1,8 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -15,9 +15,31 @@ export default function ProfilePage() {
   const [avatar, setAvatar] = useState<string | null>(user?.avatar || null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    setForm({
+      name: user?.name || "Demo User",
+      email: user?.email || "demo@gmail.com",
+      phone: user?.phone || "0123456789",
+    });
+    setAvatar(user?.avatar || null);
+  }, [user]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+
+  if (isLoading) {
+    return (
+      <div className="page">
+        <section className="section">
+          <div className="container empty-state">
+            <h2>Đang tải hồ sơ</h2>
+            <p>Vui lòng chờ trong giây lát...</p>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="page">

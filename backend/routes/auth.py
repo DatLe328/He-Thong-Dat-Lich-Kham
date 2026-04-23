@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime
 
-from flask import Blueprint, current_app, request, jsonify
+from flask import Blueprint, current_app, request, jsonify, session
 from sqlalchemy import or_
 
 from db.db import db
@@ -10,6 +10,9 @@ from models.user import User, UserRole
 from models import Patient
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
+SESSION_USER_ID_KEY = "auth_user_id"
+SESSION_PROVIDER_KEY = "auth_provider"
+SESSION_AVATAR_KEY = "auth_avatar"
 
 
 def _get_request_data():
@@ -77,6 +80,35 @@ def _serialize_auth_user(user, provider="credentials", avatar=None):
         "dateOfBirth": data["dateOfBirth"],
         "address": data["address"],
     }
+
+
+def _set_auth_session(user, provider="credentials", avatar=None):
+    session.clear()
+    session.permanent = True
+    session[SESSION_USER_ID_KEY] = user.userID
+    session[SESSION_PROVIDER_KEY] = provider
+    session[SESSION_AVATAR_KEY] = avatar
+
+
+def _clear_auth_session():
+    session.clear()
+
+
+def _get_session_auth_user():
+    user_id = session.get(SESSION_USER_ID_KEY)
+    if not user_id:
+        return None
+
+    user = db.session.get(User, user_id)
+    if not user:
+        _clear_auth_session()
+        return None
+
+    return _serialize_auth_user(
+        user,
+        provider=session.get(SESSION_PROVIDER_KEY, "credentials"),
+        avatar=session.get(SESSION_AVATAR_KEY),
+    )
 
 
 def _verify_google_credential(credential, client_id):
@@ -162,6 +194,7 @@ def register():
     db.session.add(patient)
 
     db.session.commit()
+    _set_auth_session(user, provider="credentials")
 
     return jsonify({
         "message": "Register success",
@@ -193,10 +226,31 @@ def login():
     if not user.check_password(password):
         return jsonify({"error": "Wrong password"}), 401
 
+    _set_auth_session(user, provider="credentials")
+
     return jsonify({
         "message": "Login success",
         "user": user.to_dict()
     }), 200
+
+
+@auth_bp.route("/me", methods=["GET"])
+def current_user():
+    user = _get_session_auth_user()
+
+    if not user:
+        return jsonify({"error": "Unauthenticated"}), 401
+
+    return jsonify({
+        "message": "Current user fetched successfully",
+        "user": user,
+    }), 200
+
+
+@auth_bp.route("/logout", methods=["POST"])
+def logout():
+    _clear_auth_session()
+    return jsonify({"message": "Logout success"}), 200
 
 
 @auth_bp.route("/google", methods=["POST"])
@@ -258,6 +312,11 @@ def google_login():
     db.session.flush()
     _ensure_patient_profile(user)
     db.session.commit()
+    _set_auth_session(
+        user,
+        provider="google",
+        avatar=google_profile.get("picture"),
+    )
 
     return jsonify({
         "message": "Google login success",

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
 function AppointmentListPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
   const [appointments, setAppointments] = useState<any[]>([]);
   const [phone, setPhone] = useState("");
@@ -57,8 +57,8 @@ function AppointmentListPage() {
   };
 
   useEffect(() => {
-    if (user?.id) fetchAppointments();
-  }, [user?.id]);
+    if (!authLoading && user?.id) fetchAppointments();
+  }, [authLoading, user?.id]);
 
   // ======================
   // CANCEL FLOW (UPDATED)
@@ -157,7 +157,7 @@ function AppointmentListPage() {
       <section className="section">
         <div className="container">
 
-          {!user && (
+          {!user && !authLoading && (
             <div className="content-card">
               <h2>Tra cứu lịch hẹn</h2>
 
@@ -177,7 +177,7 @@ function AppointmentListPage() {
           )}
 
           {error && <p style={{ color: "red" }}>{error}</p>}
-          {loading && <p>Đang tải...</p>}
+          {(loading || authLoading) && <p>Đang tải...</p>}
 
           {!loading && appointments.length > 0 && (
             <div className="profile-main">

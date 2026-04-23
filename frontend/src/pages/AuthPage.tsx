@@ -11,7 +11,7 @@ function getTab(value: string | null): AuthTab {
 }
 
 function AuthPage() {
-  const { user, login, register, loginWithGoogle } = useAuth();
+  const { user, login, register, loginWithGoogle, isLoading } = useAuth();
   const { specialties, totalDoctors } = useDoctorDirectory();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -139,7 +139,12 @@ function AuthPage() {
           </div>
 
           <div className="auth-card auth-card--tabs">
-            {user ? (
+            {isLoading ? (
+              <div className="success-card">
+                <h2>Đang kiểm tra phiên đăng nhập</h2>
+                <p>Hệ thống đang lấy thông tin tài khoản từ máy chủ.</p>
+              </div>
+            ) : user ? (
               <div className="success-card">
                 <h2>Xin chào, {user.name}</h2>
                 <p>

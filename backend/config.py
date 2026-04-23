@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from dotenv import load_dotenv
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -25,6 +26,7 @@ def _env_int(name, default):
 
 
 class Config:
+    SECRET_KEY = os.getenv("SECRET_KEY") or "dev-secret-key"
     DB_USER = os.getenv("DB_USER")
     DB_PASSWORD = os.getenv("DB_PASSWORD") 
     DB_HOST = os.getenv("DB_HOST") 
@@ -47,3 +49,7 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     INIT_DB = os.getenv("INIT_DB", "false").lower() == "true"
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = _env_bool("SESSION_COOKIE_SECURE", False)
+    PERMANENT_SESSION_LIFETIME = timedelta(days=7)

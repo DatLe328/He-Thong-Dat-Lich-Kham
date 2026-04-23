@@ -11,7 +11,7 @@ function getNavLinkClass(isActive: boolean) {
 }
 
 function AppShell() {
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const { specialties } = useDoctorDirectory();
   const navigate = useNavigate();
 
@@ -80,7 +80,7 @@ function AppShell() {
           </nav>
 
           <div className="header-actions">
-            {user ? (
+            {isLoading ? null : user ? (
               <>
 
                 <div
