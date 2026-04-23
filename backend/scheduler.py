@@ -3,6 +3,7 @@ from datetime import datetime
 from models.appointment import Appointment, AppointmentStatus
 from db.db import db
 import logging
+import os
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ def expire_appointments(app):
             count = 0
 
             for appt in expired:
-                # 🔒 double safety check
+
                 if appt.status != AppointmentStatus.PENDING:
                     continue
 
@@ -54,8 +55,13 @@ def expire_appointments(app):
 
 
 
+
+
 def start_scheduler(app):
     try:
+        # chỉ chạy 1 process thật
+        if os.environ.get("WERKZEUG_RUN_MAIN") != "true" and app.debug:
+            return
 
         if not scheduler.get_job("expire_appointments_job"):
 
