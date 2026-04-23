@@ -39,6 +39,14 @@ class Config:
     MAIL_USE_TLS = _env_bool("MAIL_USE_TLS", True)
     MAIL_USE_SSL = _env_bool("MAIL_USE_SSL", False)
     MAIL_SUPPRESS_SEND = _env_bool("MAIL_SUPPRESS_SEND", False)
+    OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1")
+    OLLAMA_TIMEOUT = int(os.getenv("OLLAMA_TIMEOUT", "30"))
+    LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower()
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    OPENAI_URL = os.getenv("OPENAI_URL", "https://api.openai.com/v1/chat/completions")
+    OPENAI_TIMEOUT = int(os.getenv("OPENAI_TIMEOUT", "30"))
 
     SQLALCHEMY_DATABASE_URI = (
         f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}"
