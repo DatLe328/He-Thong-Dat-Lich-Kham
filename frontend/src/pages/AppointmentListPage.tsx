@@ -171,7 +171,7 @@ function AppointmentListPage() {
             </div>
           )}
 
-          {/* FILTER BỔ TRỢ (Chỉ hiện khi đã có danh sách lịch hẹn) */}
+
           {appointments.length > 0 && (
             <div className="content-card">
               <div className="form-row" style={{ gap: 10 }}>
