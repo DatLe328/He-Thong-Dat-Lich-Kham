@@ -175,12 +175,7 @@ function AppointmentListPage() {
           {appointments.length > 0 && (
             <div className="content-card">
               <div className="form-row" style={{ gap: 10 }}>
-                <input
-                  className="input"
-                  placeholder="Lọc theo tên bác sĩ..."
-                  value={searchDoctor}
-                  onChange={(e) => setSearchDoctor(e.target.value)}
-                />
+
                 <select
                   className="input"
                   value={statusFilter}
