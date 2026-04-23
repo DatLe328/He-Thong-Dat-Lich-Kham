@@ -7,6 +7,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { DoctorDirectoryProvider } from "./context/DoctorDirectoryContext";
 
 import "./styles/global.css";
+import "./styles/admin.css";
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 

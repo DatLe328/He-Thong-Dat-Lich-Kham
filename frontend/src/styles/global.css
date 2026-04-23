@@ -2635,3 +2635,81 @@ code {
   gap: 10px;
   justify-content: flex-end;
 }
+
+.countdown {
+  font-weight: bold;
+  color: #e53935;
+  font-size: 18px;
+}
+
+.schedule-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.schedule-card {
+  padding: 14px;
+  border: 1px solid #eee;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.schedule-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.schedule-date {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.schedule-sub {
+  font-size: 12px;
+  color: #888;
+}
+
+/* GRID SLOT */
+.slot-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* SLOT BUTTON */
+.slot-btn {
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+/* AVAILABLE */
+.slot-btn.available {
+  background: #eef6ff;
+  color: #2563eb;
+}
+
+.slot-btn.available:hover {
+  background: #dbeafe;
+  transform: scale(1.05);
+}
+
+/* BOOKED */
+.slot-btn.booked {
+  background: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+/* SELECTED */
+.slot-btn.selected {
+  background: #2563eb;
+  color: white;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}

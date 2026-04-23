@@ -17,7 +17,7 @@ class Patient(db.Model):
     patientID = db.Column(db.Integer, primary_key=True, autoincrement=True)
 
 
-    userID = db.Column(db.Integer, db.ForeignKey("users.userID"), nullable=False)
+    userID = db.Column(db.Integer, db.ForeignKey("users.userID"), nullable=True)
 
     fullName = db.Column(db.String(150), nullable=False)
     phone = db.Column(db.String(20), nullable=True)
