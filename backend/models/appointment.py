@@ -89,6 +89,7 @@ class Appointment(db.Model):
 
             "createdAt": self.createdAt.isoformat(),
             "updatedAt": self.updatedAt.isoformat() if self.updatedAt else None,
+            "expiresAt": self.expiresAt.isoformat() if self.expiresAt else None,
         }
 
     def cancel(self, reason="USER_CANCEL"):

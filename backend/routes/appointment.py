@@ -180,10 +180,7 @@ def create_appointment():
             "phone": (patient_info or {}).get("phone"),
         }
 
-        threading.Thread(
-            target=send_async_email,
-            args=(app, appt_id, safe_patient_info, "create")
-        ).start()
+
 
         return ok({
             "appointmentId": appt.appointmentId,
@@ -194,6 +191,7 @@ def create_appointment():
     except Exception as e:
         db.session.rollback()
         return err(str(e), 500)
+
 
 
 # =========================
