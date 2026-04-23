@@ -71,6 +71,12 @@ function AppShell() {
             >
               Bác sĩ
             </NavLink>
+            <NavLink
+              to="/appointments"
+              className={({ isActive }) => getNavLinkClass(isActive)}
+            >
+              Lịch hẹn
+            </NavLink>
           </nav>
 
           <div className="header-actions">
