@@ -11,6 +11,7 @@ from routes.statistics import statistics_bp
 from routes.review import review_bp
 from routes.payment import momo_bp
 from models.payment import Payment
+from scheduler import start_scheduler
 
 
 # flask --app app:create_app db init
@@ -51,6 +52,8 @@ def create_app(init_db=False):
     @app.errorhandler(500)
     def internal_error(e):
         return jsonify({"success": False, "message": "Lỗi server nội bộ."}), 500
+
+    start_scheduler(app)
 
     return app
 
