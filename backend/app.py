@@ -12,6 +12,7 @@ from routes.review import review_bp
 from routes.payment import momo_bp
 from models.payment import Payment
 
+from routes.chatbot import chatbot_bp
 
 # flask --app app:create_app db init
 # flask --app app:create_app db migrate -m "add updatedAt to reviews"
@@ -39,6 +40,7 @@ def create_app(init_db=False):
     app.register_blueprint(statistics_bp)
     app.register_blueprint(review_bp)
     app.register_blueprint(momo_bp)
+    app.register_blueprint(chatbot_bp)
 
     @app.errorhandler(404)
     def not_found(e):
