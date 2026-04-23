@@ -10,6 +10,10 @@ from datetime import datetime, timezone
 from db.db import db
 from models.payment import Payment
 from models.appointment import Appointment, AppointmentStatus
+from flask import current_app
+import threading
+
+from routes.appointment import send_async_email
 
 momo_bp = Blueprint("momo", __name__, url_prefix="/api/momo")
 
@@ -19,12 +23,23 @@ def create_payment():
     try:
         data = request.get_json() or {}
         appointment_id = data.get("appointmentId")
-        amount = int(data.get("amount", 50000))
 
         if not appointment_id:
             return jsonify({"success": False, "message": "Missing appointmentId"}), 400
 
-        # Lấy config và strip() để loại bỏ xuống dòng/khoảng trắng
+        appt = Appointment.query.get(appointment_id)
+        if not appt:
+            return jsonify({"success": False, "message": "Appointment not found"}), 404
+
+        # 🔥 KHÔNG lấy amount từ FE
+        amount = appt.price if hasattr(appt, "price") else 50000
+
+        # LOCK appointment
+        appt.paymentLocked = True
+        appt.status = AppointmentStatus.PENDING
+
+        db.session.commit()
+
         partner_code = os.getenv("MOMO_PARTNER_CODE").strip()
         access_key = os.getenv("MOMO_ACCESS_KEY").strip()
         secret_key = os.getenv("MOMO_SECRET_KEY").strip()
@@ -32,37 +47,25 @@ def create_payment():
         return_url = os.getenv("MOMO_RETURN_URL").strip()
         notify_url = os.getenv("MOMO_NOTIFY_URL").strip()
 
-        # Thông tin định danh giao dịch
         order_id = str(uuid.uuid4())
         request_id = str(uuid.uuid4())
         order_info = f"Thanh toan lich hen {appointment_id}"
-        # MoMo yêu cầu extraData KHÔNG ĐƯỢC NULL. Dùng chuỗi rỗng.
         extra_data = ""
         request_type = "captureWallet"
 
-        # BƯỚC CỰC KỲ QUAN TRỌNG: TẠO CHỮ KÝ (SIGNATURE)
-        # Thứ tự các field này là bất di bất dịch theo tài liệu MoMo V2
         raw_signature = (
-            f"accessKey={access_key}&"
-            f"amount={amount}&"
-            f"extraData={extra_data}&"
-            f"ipnUrl={notify_url}&"
-            f"orderId={order_id}&"
-            f"orderInfo={order_info}&"
-            f"partnerCode={partner_code}&"
-            f"redirectUrl={return_url}&"
-            f"requestId={request_id}&"
-            f"requestType={request_type}"
+            f"accessKey={access_key}&amount={amount}&extraData={extra_data}&"
+            f"ipnUrl={notify_url}&orderId={order_id}&orderInfo={order_info}&"
+            f"partnerCode={partner_code}&redirectUrl={return_url}&"
+            f"requestId={request_id}&requestType={request_type}"
         )
 
         signature = hmac.new(
-            secret_key.encode("utf-8"),
-            raw_signature.encode("utf-8"),
+            secret_key.encode(),
+            raw_signature.encode(),
             hashlib.sha256
         ).hexdigest()
 
-        # BUILD PAYLOAD GỬI ĐI
-        # Chú ý: Không gửi thừa field partnerName hay storeId nếu vẫn bị lỗi format
         payload = {
             "partnerCode": partner_code,
             "requestId": request_id,
@@ -77,14 +80,10 @@ def create_payment():
             "lang": "vi"
         }
 
-        # Gửi request bằng json= thay vì data= để requests tự xử lý Content-Type
         response = requests.post(endpoint, json=payload, timeout=10)
         res_data = response.json()
 
-
-
         if res_data.get("resultCode") == 0:
-            # Lưu DB
             payment = Payment(
                 orderId=order_id,
                 amount=amount,
@@ -94,12 +93,15 @@ def create_payment():
             )
             db.session.add(payment)
             db.session.commit()
-            return jsonify({"success": True, "payUrl": res_data.get("payUrl")})
+
+            return jsonify({
+                "success": True,
+                "payUrl": res_data.get("payUrl")
+            })
 
         return jsonify({
             "success": False,
-            "message": res_data.get("message"),
-            "subErrors": res_data.get("subErrors")
+            "message": res_data.get("message")
         }), 400
 
     except Exception as e:
@@ -110,7 +112,6 @@ def create_payment():
 def momo_ipn():
     try:
         data = request.get_json()
-
         print("🔥 IPN HIT:", data)
 
         order_id = data.get("orderId")
@@ -124,18 +125,43 @@ def momo_ipn():
         if not payment:
             return jsonify({"message": "Payment not found"}), 404
 
+        # 🔥 CHỐNG DUPLICATE IPN
+        if payment.status == "PAID":
+            return jsonify({"message": "Already processed"}), 200
+
+        # =========================
         # SUCCESS
+        # =========================
         if result_code == 0:
             payment.status = "PAID"
 
-            # update appointment luôn
             appt = Appointment.query.get(payment.appointmentId)
+
             if appt:
                 appt.status = AppointmentStatus.CONFIRMED
                 appt.paymentLocked = False
+                appt.paymentStatus = "PAID"
                 appt.updatedAt = datetime.now(timezone.utc)
 
+                # =========================
+                # 🔥 SEND EMAIL AFTER PAYMENT
+                # =========================
+                app = current_app._get_current_object()
+
+                patient_info = {
+                    "email": appt.patient.user.email if appt.patient and appt.patient.user else None,
+                    "firstName": appt.patient.user.firstName if appt.patient and appt.patient.user else None,
+                    "lastName": appt.patient.user.lastName if appt.patient and appt.patient.user else None,
+                }
+
+                threading.Thread(
+                    target=send_async_email,
+                    args=(app, appt.appointmentId, patient_info, "create")
+                ).start()
+
+        # =========================
         # FAILED
+        # =========================
         else:
             payment.status = "FAILED"
 

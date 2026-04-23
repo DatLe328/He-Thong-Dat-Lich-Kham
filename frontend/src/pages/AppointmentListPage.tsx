@@ -213,6 +213,10 @@ function AppointmentListPage() {
                   <p>{a.clinicName}</p>
                   <p>📅 {new Date(a.appointmentDate).toLocaleString("vi-VN")}</p>
                   <p>💰 Cọc: 50.000đ</p>
+                  <p>🕒 Đặt lúc: {new Date(a.createdAt).toLocaleString("vi-VN")}</p>
+                  <p>
+                  ⏳ Hết hạn: {a.expiresAt ? new Date(a.expiresAt).toLocaleString("vi-VN") : "Chưa có"}
+                  </p>
 
                   {a.status === "PENDING" && timeLeft !== undefined && (
                     <p style={{ color: isExpired ? "red" : "orange" }}>
