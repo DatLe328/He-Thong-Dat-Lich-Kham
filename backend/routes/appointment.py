@@ -14,9 +14,7 @@ from models.proxy_booking import ProxyBooking
 appointment_bp = Blueprint("appointment", __name__, url_prefix="/api/appointments")
 
 
-# =========================
-# UTILS
-# =========================
+
 def now():
     return datetime.now(timezone.utc)
 
@@ -42,9 +40,7 @@ def ok(data=None, msg="OK", code=200):
     return jsonify({"success": True, "message": msg, "data": data}), code
 
 
-# =========================
-# EMAIL THREAD SAFE
-# =========================
+
 def send_async_email(app, appt_id, patient_info=None, mode="create"):
     with app.app_context():
         try:
@@ -54,7 +50,7 @@ def send_async_email(app, appt_id, patient_info=None, mode="create"):
                 .first()
             )
 
-            # FORCE LOAD FULL RELATIONSHIP
+
             _ = appt.patient
             _ = appt.patient.user if appt.patient else None
             _ = appt.doctor
@@ -62,7 +58,7 @@ def send_async_email(app, appt_id, patient_info=None, mode="create"):
             _ = appt.clinic
             _ = appt.schedule
 
-            # BUILD SAFE PATIENT INFO (FIX NULL + fallback DB)
+
             if not patient_info:
                 patient_info = {
                     "email": appt.patient.user.email if appt.patient and appt.patient.user else None,
@@ -70,7 +66,7 @@ def send_async_email(app, appt_id, patient_info=None, mode="create"):
                     "lastName": appt.patient.user.lastName if appt.patient and appt.patient.user else None,
                 }
             else:
-                # fallback nếu thiếu field
+
                 patient_info["email"] = patient_info.get("email") or (appt.patient.user.email if appt.patient and appt.patient.user else None)
                 patient_info["firstName"] = patient_info.get("firstName") or (appt.patient.user.firstName if appt.patient and appt.patient.user else None)
                 patient_info["lastName"] = patient_info.get("lastName") or (appt.patient.user.lastName if appt.patient and appt.patient.user else None)
@@ -85,26 +81,23 @@ def send_async_email(app, appt_id, patient_info=None, mode="create"):
             app.logger.error(f"LỖI GỬI MAIL NGẦM: {e}")
 
 
-# =========================
-# 1. LẤY DANH SÁCH CUỘC HẸN
-# =========================
+
 @appointment_bp.route("", methods=["GET"])
 def get_appointments():
     try:
         user_id = request.args.get("userId")
         doctor_id = request.args.get("doctorId")
-        phone = request.args.get("phone")  # Thêm để nhận từ React
+        phone = request.args.get("phone")
 
         query = Appointment.query
 
-        # Nếu là User đã đăng nhập
+
         if user_id:
             query = query.filter(Appointment.patient.has(userID=user_id))
 
-        # Nếu là Khách vãng lai tra cứu bằng số điện thoại
+
         elif phone:
-            # Tìm trong ProxyBooking (thông tin đặt hộ/khách vãng lai)
-            # hoặc tìm trực tiếp trong Patient qua phone
+
 
             query = query.join(ProxyBooking, Appointment.appointmentId == ProxyBooking.appointmentId) \
                 .filter(ProxyBooking.phone == phone)
@@ -121,9 +114,7 @@ def get_appointments():
         return err(str(e), 500)
 
 
-# =========================
-# 2. TẠO CUỘC HẸN
-# =========================
+
 @appointment_bp.route("", methods=["POST"])
 def create_appointment():
     try:
@@ -172,7 +163,7 @@ def create_appointment():
         app = current_app._get_current_object()
         appt_id = appt.appointmentId
 
-        # FIX: truyền đúng patient_info (KHÔNG bỏ None nữa)
+
         safe_patient_info = {
             "email": (patient_info or {}).get("email"),
             "firstName": (patient_info or {}).get("firstName"),
@@ -194,9 +185,6 @@ def create_appointment():
 
 
 
-# =========================
-# 3. HỦY LỊCH
-# =========================
 @appointment_bp.route("/<int:id>/cancel", methods=["POST"])
 def cancel_appointment(id):
     try:
