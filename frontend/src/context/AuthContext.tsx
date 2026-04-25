@@ -18,17 +18,21 @@ type AuthContextValue = {
   login: (input: LoginInput) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   loginWithGoogle: (credential: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 };
 
-const SESSION_STORAGE_KEY = "front-clinic-session";
 const LOGIN_AUTH_ENDPOINT = "/api/auth/login";
 const REGISTER_AUTH_ENDPOINT = "/api/auth/register";
 const GOOGLE_AUTH_ENDPOINT = "/api/auth/google";
+const CURRENT_AUTH_ENDPOINT = "/api/auth/me";
+const LOGOUT_AUTH_ENDPOINT = "/api/auth/logout";
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-function mapApiAuthUser(apiUser: ApiAuthUser, fallbackProvider: AuthUser["provider"]) {
+function mapApiAuthUser(
+  apiUser: ApiAuthUser,
+  fallbackProvider: AuthUser["provider"]
+) {
   const fullName = [apiUser.firstName, apiUser.lastName]
     .filter(Boolean)
     .join(" ")
@@ -48,19 +52,6 @@ function mapApiAuthUser(apiUser: ApiAuthUser, fallbackProvider: AuthUser["provid
   } satisfies AuthUser;
 }
 
-function readSessionFromStorage() {
-  const session = localStorage.getItem(SESSION_STORAGE_KEY);
-
-  if (!session) return null;
-
-  try {
-    return JSON.parse(session) as AuthUser;
-  } catch {
-    localStorage.removeItem(SESSION_STORAGE_KEY);
-    return null;
-  }
-}
-
 async function readAuthPayload(response: Response) {
   return (await response.json().catch(() => null)) as
     | ApiAuthResponse
@@ -68,9 +59,13 @@ async function readAuthPayload(response: Response) {
     | null;
 }
 
-function getAuthErrorMessage(payload: any, fallback: string) {
+function getAuthErrorMessage(payload: unknown, fallback: string) {
   const apiMessage =
-    payload && "error" in payload ? payload.error : payload?.message;
+    payload && typeof payload === "object" && "error" in payload
+      ? (payload as { error?: string }).error
+      : payload && typeof payload === "object" && "message" in payload
+        ? (payload as { message?: string }).message
+        : undefined;
 
   return apiMessage || fallback;
 }
@@ -79,20 +74,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
-    setUser(readSessionFromStorage());
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      try {
+        const response = await fetch(CURRENT_AUTH_ENDPOINT, {
+          headers: {
+            Accept: "application/json",
+          },
+          credentials: "include",
+        });
+
+        const payload = await readAuthPayload(response);
+
+        if (!response.ok || !payload || !("user" in payload)) {
+          if (!cancelled) {
+            setUser(null);
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setUser(
+            mapApiAuthUser(
+              payload.user,
+              payload.user.provider ?? "credentials"
+            )
+          );
+        }
+      } catch {
+        if (!cancelled) {
+          setUser(null);
+        }
+      }
+    };
+
+    restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user));
-
-
-      localStorage.setItem("userId", String(user.id));
-    } else {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
-      localStorage.removeItem("userId");
-    }
-  }, [user]);
 
   const login = async (input: LoginInput) => {
     const response = await fetch(LOGIN_AUTH_ENDPOINT, {
@@ -101,6 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+      credentials: "include",
       body: JSON.stringify({
         identifier: input.identifier.trim().toLowerCase(),
         password: input.password,
@@ -115,11 +138,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    const mappedUser = mapApiAuthUser(payload.user, "credentials");
-    setUser(mappedUser);
-
-    // ✅ FIX
-    localStorage.setItem("userId", String(mappedUser.id));
+    setUser(mapApiAuthUser(payload.user, "credentials"));
   };
 
   const register = async (input: RegisterInput) => {
@@ -129,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+      credentials: "include",
       body: JSON.stringify(input),
     });
 
@@ -140,11 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    const mappedUser = mapApiAuthUser(payload.user, "credentials");
-    setUser(mappedUser);
-
-    // ✅ FIX
-    localStorage.setItem("userId", String(mappedUser.id));
+    setUser(mapApiAuthUser(payload.user, "credentials"));
   };
 
   const loginWithGoogle = async (credential: string) => {
@@ -154,10 +170,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "Content-Type": "application/json",
         Accept: "application/json",
       },
+      credentials: "include",
       body: JSON.stringify({ credential }),
     });
 
-    const payload = await response.json().catch(() => null);
+    const payload = await readAuthPayload(response);
 
     if (!response.ok || !payload || !("user" in payload)) {
       throw new Error(
@@ -165,16 +182,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
     }
 
-    const mappedUser = mapApiAuthUser(payload.user, "google");
-    setUser(mappedUser);
-
-    // ✅ FIX
-    localStorage.setItem("userId", String(mappedUser.id));
+    setUser(mapApiAuthUser(payload.user, "google"));
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem("userId");
+  const logout = async () => {
+    try {
+      await fetch(LOGOUT_AUTH_ENDPOINT, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+        },
+        credentials: "include",
+      });
+    } finally {
+      setUser(null);
+    }
   };
 
   return (

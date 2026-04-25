@@ -1,55 +1,52 @@
 export async function bookAppointment(payload: {
-  userId?: number; // ✅ cho phép optional
+  userId?: number;
   doctorId: number;
   scheduleId: number;
   appointmentDate: string;
-  isProxy?: boolean;
+
+  // dùng 1 field duy nhất cho backend
+  mode: "self" | "proxy" | "guest";
+
   patientInfo?: {
-    email: string;
+    email?: string;
     firstName: string;
     lastName?: string;
-    phone?: string;
+    phone: string;
     gender?: string;
     address?: string;
   };
 }) {
   const body: any = {
-    doctorId: payload.doctorId,
-    scheduleId: payload.scheduleId,
+    doctorId: Number(payload.doctorId),
+    scheduleId: Number(payload.scheduleId),
+
+
     appointmentDate: payload.appointmentDate,
+
+    mode: payload.mode,
   };
 
-  // =========================
-  // USER LOGIN
-  // =========================
   if (payload.userId) {
-    body.userId = payload.userId;
+    body.userId = Number(payload.userId);
   }
 
   // =========================
-  // 🔥 QUAN TRỌNG: GỬI patientInfo CHO CẢ GUEST + PROXY
+  // PATIENT INFO (proxy + guest)
   // =========================
   if (payload.patientInfo) {
     const p = payload.patientInfo;
 
     body.patientInfo = {
-      email: p.email,
-      firstName: p.firstName,
-      lastName: p.lastName || "",
-      phone: p.phone || "",
+      firstName: (p.firstName || "").trim(),
+      lastName: (p.lastName || "").trim(),
+      phone: (p.phone || "").trim(),
+      email: p.email || "",
       gender: p.gender || "",
       address: p.address || "",
     };
   }
 
-  // =========================
-  // PROXY FLAG (optional)
-  // =========================
-  if (payload.isProxy) {
-    body.mode = "proxy";
-  }
-
-  console.log("FINAL BODY:", body); // 🔥 debug
+  console.log("FINAL BODY SEND TO BE:", body);
 
   const res = await fetch("/api/appointments", {
     method: "POST",

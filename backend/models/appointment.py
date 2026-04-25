@@ -29,13 +29,16 @@ class Appointment(db.Model):
 
     appointmentDate = db.Column(db.DateTime, nullable=False)
     reason = db.Column(db.Text, nullable=True)
-
+    note = db.Column(db.Text, nullable=True)
     status = db.Column(db.Enum(AppointmentStatus), default=AppointmentStatus.PENDING, nullable=False)
 
     cancelReason = db.Column(db.Text, nullable=True)
 
     createdAt = db.Column(db.DateTime, default=datetime.now, nullable=False)
     updatedAt = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+    expiresAt = db.Column(db.DateTime, nullable=True)
+    paymentLocked = db.Column(db.Boolean, default=False)
+    paymentLockedAt = db.Column(db.DateTime, nullable=True)
 
     # relationships
     patient = db.relationship("Patient", back_populates="appointments")
@@ -72,6 +75,7 @@ class Appointment(db.Model):
             "clinicId": self.clinicId,
             "appointmentDate": self.appointmentDate.isoformat() if self.appointmentDate else None,
             "reason": self.reason,
+            "note": self.note,
             "status": self.status.value,
             "cancelReason": self.cancelReason,
 
@@ -85,6 +89,7 @@ class Appointment(db.Model):
 
             "createdAt": self.createdAt.isoformat(),
             "updatedAt": self.updatedAt.isoformat() if self.updatedAt else None,
+            "expiresAt": self.expiresAt.isoformat() if self.expiresAt else None,
         }
 
     def cancel(self, reason="USER_CANCEL"):
