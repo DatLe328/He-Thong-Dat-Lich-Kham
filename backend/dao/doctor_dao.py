@@ -5,6 +5,7 @@ from models.user    import User, UserRole
 from models.doctor  import Doctor
 from models.appointment import Appointment, AppointmentStatus
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 
 
 class DoctorDAO:
@@ -12,33 +13,50 @@ class DoctorDAO:
     # ── CREATE ────────────────────────────────────────────────────
     @staticmethod
     def create(
-        firstName: str, lastName: str, email: str, password: str,
-        specialization: str = None, licenseNumber: str = None,
-        bio: str = None, clinicID: int = None,
-        phone: str = None, gender: str = None,
-        dateOfBirth=None, address: str = None,
+            firstName: str, lastName: str, email: str, password: str,
+            specialization: str = None, licenseNumber: str = None,
+            bio: str = None, clinicID: int = None,
+            phone: str = None, gender: str = None,
+            dateOfBirth=None, address: str = None,
     ) -> Doctor:
-        user = User(
-            firstName=firstName, lastName=lastName,
-            email=email, phone=phone, gender=gender,
-            dateOfBirth=dateOfBirth, address=address,
-            role=UserRole.DOCTOR,
-        )
-        user.set_password(password)
-        db.session.add(user)
-        db.session.flush()
 
-        doctor = Doctor(
-            userID=user.userID,
-            clinicID=clinicID,
-            specialization=specialization,
-            licenseNumber=licenseNumber,
-            bio=bio,
-        )
-        db.session.add(doctor)
-        db.session.commit()
-        db.session.refresh(doctor)
-        return doctor
+        try:
+
+            existing = User.query.filter_by(email=email).first()
+            if existing:
+                raise Exception("EMAIL_EXISTS")
+
+            user = User(
+                firstName=firstName,
+                lastName=lastName,
+                email=email,
+                phone=phone,
+                gender=gender,
+                dateOfBirth=dateOfBirth,
+                address=address,
+                role=UserRole.DOCTOR,
+            )
+            user.set_password(password)
+
+            db.session.add(user)
+            db.session.flush()
+
+            doctor = Doctor(
+                userID=user.userID,
+                clinicID=clinicID,
+                specialization=specialization,
+                licenseNumber=licenseNumber,
+                bio=bio,
+            )
+
+            db.session.add(doctor)
+            db.session.commit()
+            db.session.refresh(doctor)
+            return doctor
+
+        except IntegrityError:
+            db.session.rollback()
+            raise Exception("EMAIL_EXISTS")
 
     # ── READ ──────────────────────────────────────────────────────
     @staticmethod

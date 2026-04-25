@@ -50,7 +50,21 @@ def create_doctor():
             address       =d.get("address"),
         )
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 409
+        msg = str(e)
+
+
+        if "EMAIL_EXISTS" in msg or "UNIQUE" in msg or "email" in msg.lower():
+            return jsonify({
+                "success": False,
+                "message": "Email đã tồn tại"
+            }), 409
+
+        return jsonify({
+            "success": False,
+            "message": "Tạo bác sĩ thất bại"
+        }), 409
+
+
 
     return jsonify({"success": True, "message": "Tạo bác sĩ thành công.", "data": doctor.to_dict()}), 201
 

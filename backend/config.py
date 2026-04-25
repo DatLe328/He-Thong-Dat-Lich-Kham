@@ -48,7 +48,9 @@ class Config:
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
     OPENAI_URL = os.getenv("OPENAI_URL", "https://api.openai.com/v1/chat/completions")
     OPENAI_TIMEOUT = int(os.getenv("OPENAI_TIMEOUT", "30"))
-
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = False
+    SESSION_COOKIE_HTTPONLY = True
     SQLALCHEMY_DATABASE_URI = (
         f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}"
         f"@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"

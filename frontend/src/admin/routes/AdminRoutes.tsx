@@ -9,7 +9,7 @@ export default function AdminRoutes() {
   return (
     <Routes>
       <Route path="/" element={<AdminLayout />}>
-        <Route index element={<Dashboard />} />
+        <Route index element={<UsersPage />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="doctors" element={<DoctorsPage />} />
         <Route path="appointments" element={<AppointmentsPage />} />

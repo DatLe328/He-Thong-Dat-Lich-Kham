@@ -19,11 +19,9 @@ export async function bookAppointment(payload: {
   const body: any = {
     doctorId: Number(payload.doctorId),
     scheduleId: Number(payload.scheduleId),
-
-
     appointmentDate: payload.appointmentDate,
-
     mode: payload.mode,
+    note: payload.note?.trim() || ""
   };
 
   if (payload.userId) {

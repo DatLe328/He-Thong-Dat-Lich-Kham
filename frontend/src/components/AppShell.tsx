@@ -82,6 +82,15 @@ function AppShell() {
           <div className="header-actions">
             {user ? (
               <>
+                {user?.role === "ADMIN" && (
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    onClick={() => navigate("/admin")}
+                  >
+                    🛠 Admin
+                  </button>
+                )}
 
                 <div
                   className="user-chip"

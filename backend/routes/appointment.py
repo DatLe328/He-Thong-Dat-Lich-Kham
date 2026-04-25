@@ -144,8 +144,10 @@ def create_appointment():
             scheduleId=schedule_id,
             clinicId=clinic_id,
             patientInfo=patient_info,
-            reason=d.get("reason") or reason
+            reason=d.get("reason") or reason,
+            note = d.get("note")
         )
+
 
         if error:
             return err(error, 409)
@@ -214,6 +216,29 @@ def cancel_appointment(id):
         ).start()
 
         return ok(appt.to_dict(), "Đã huỷ lịch")
+
+    except Exception as e:
+        db.session.rollback()
+        return err(str(e), 500)
+
+@appointment_bp.route("/<int:id>/approve", methods=["POST"])
+def approve_appointment(id):
+    try:
+        appt = Appointment.query.get(id)
+
+        if not appt:
+            return err("Không tìm thấy lịch hẹn", 404)
+
+        if appt.status != AppointmentStatus.PENDING:
+            return err("Chỉ có thể duyệt lịch PENDING")
+
+        appt.status = AppointmentStatus.CONFIRMED
+        appt.updatedAt = now()
+
+        db.session.commit()
+        db.session.refresh(appt)
+
+        return ok(appt.to_dict(), "Đã duyệt lịch")
 
     except Exception as e:
         db.session.rollback()

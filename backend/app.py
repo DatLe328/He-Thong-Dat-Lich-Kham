@@ -10,18 +10,25 @@ from routes.patient import patient_bp
 from routes.statistics import statistics_bp
 from routes.review import review_bp
 from routes.payment import momo_bp
-from models.payment import Payment
+from routes.user import user_bp
 from scheduler import start_scheduler
+from flask_cors import CORS
 
 
-# flask --app app:create_app db init
-# flask --app app:create_app db migrate -m "add updatedAt to reviews"
-# flask --app app:create_app db upgrade
+
 migrate = Migrate()
 
 def create_app(init_db=False):
     app = Flask(__name__)
     app.config.from_object(Config)
+    CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
+
+    app.config.update(
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=False,
+        SESSION_COOKIE_HTTPONLY=True,
+
+    )
 
     db.init_app(app)
     migrate.init_app(app, db)
@@ -40,6 +47,7 @@ def create_app(init_db=False):
     app.register_blueprint(statistics_bp)
     app.register_blueprint(review_bp)
     app.register_blueprint(momo_bp)
+    app.register_blueprint(user_bp)
 
     @app.errorhandler(404)
     def not_found(e):
