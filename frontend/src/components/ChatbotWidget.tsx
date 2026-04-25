@@ -7,6 +7,15 @@ type ChatMessage = {
 };
 
 const CHATBOT_ENDPOINT = "/api/chatbot/ask";
+const CHATBOT_SESSION_ID_KEY = "chatbot-session-id";
+const CHATBOT_MESSAGES_KEY = "chatbot-session-messages";
+const MAX_HISTORY_TURNS = 3;
+const DEFAULT_WELCOME_MESSAGE: ChatMessage = {
+  id: "welcome",
+  role: "bot",
+  content:
+    "Xin chào, mình có thể hỗ trợ bạn tìm bác sĩ, xem lịch trống hoặc tư vấn các câu hỏi liên quan đến sức khỏe và đặt lịch khám.",
+};
 
 function readStoredUserId() {
   const rawUserId = localStorage.getItem("userId");
@@ -17,6 +26,57 @@ function readStoredUserId() {
 
   const parsedUserId = Number(rawUserId);
   return Number.isFinite(parsedUserId) ? parsedUserId : null;
+}
+
+function createSessionId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `session-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function readOrCreateSessionId() {
+  const existing = sessionStorage.getItem(CHATBOT_SESSION_ID_KEY);
+  if (existing) {
+    return existing;
+  }
+
+  const next = createSessionId();
+  sessionStorage.setItem(CHATBOT_SESSION_ID_KEY, next);
+  return next;
+}
+
+function readStoredMessages() {
+  const raw = sessionStorage.getItem(CHATBOT_MESSAGES_KEY);
+  if (!raw) {
+    return [DEFAULT_WELCOME_MESSAGE];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as ChatMessage[];
+    if (!Array.isArray(parsed) || !parsed.length) {
+      return [DEFAULT_WELCOME_MESSAGE];
+    }
+
+    return parsed.filter(
+      (item) =>
+        item &&
+        typeof item.id === "string" &&
+        (item.role === "user" || item.role === "bot") &&
+        typeof item.content === "string"
+    );
+  } catch {
+    return [DEFAULT_WELCOME_MESSAGE];
+  }
+}
+
+function getRecentHistory(messages: ChatMessage[], maxTurns = MAX_HISTORY_TURNS) {
+  const maxMessages = maxTurns * 2;
+  const recentMessages = messages.slice(-maxMessages);
+  return recentMessages.map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
 }
 
 function ChatIcon() {
@@ -47,14 +107,8 @@ function ChatIcon() {
 
 function ChatbotWidget() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: "welcome",
-      role: "bot",
-      content:
-        "Xin chào, mình có thể hỗ trợ bạn tìm bác sĩ, xem lịch trống hoặc tư vấn các câu hỏi liên quan đến sức khỏe và đặt lịch khám.",
-    },
-  ]);
+  const [conversationId] = useState(() => readOrCreateSessionId());
+  const [messages, setMessages] = useState<ChatMessage[]>(() => readStoredMessages());
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState("");
@@ -63,6 +117,10 @@ function ChatbotWidget() {
   useEffect(() => {
     endOfMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isOpen]);
+
+  useEffect(() => {
+    sessionStorage.setItem(CHATBOT_MESSAGES_KEY, JSON.stringify(messages));
+  }, [messages]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -93,6 +151,8 @@ function ChatbotWidget() {
         body: JSON.stringify({
           question,
           userId: readStoredUserId(),
+          conversationId,
+          history: getRecentHistory(messages, MAX_HISTORY_TURNS),
         }),
       });
 
