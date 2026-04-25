@@ -9,6 +9,7 @@ from routes.appointment import appointment_bp
 from routes.patient import patient_bp
 from routes.statistics import statistics_bp
 from routes.review import review_bp
+from routes.chatbot import chatbot_bp
 from routes.payment import momo_bp
 from routes.user import user_bp
 from scheduler import start_scheduler
@@ -46,6 +47,7 @@ def create_app(init_db=False):
     app.register_blueprint(patient_bp)
     app.register_blueprint(statistics_bp)
     app.register_blueprint(review_bp)
+    app.register_blueprint(chatbot_bp)
     app.register_blueprint(momo_bp)
     app.register_blueprint(user_bp)
 

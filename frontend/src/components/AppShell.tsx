@@ -16,6 +16,7 @@ function AppShell() {
   const navigate = useNavigate();
 
   const isDoctor = useMemo(() => user?.role === "DOCTOR", [user?.role]);
+  const isAdmin = useMemo(() => user?.role === "ADMIN", [user?.role]);
   const [doctorId, setDoctorId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -121,6 +122,15 @@ function AppShell() {
                     onClick={() => navigate(`/doctors/${doctorId}/appointments`)}
                   >
                     Quản lý lịch khám
+                  </button>
+                )}
+                {isAdmin && (
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    onClick={() => navigate("/admin")}
+                  >
+                    Quản lý hệ thống
                   </button>
                 )}
 
