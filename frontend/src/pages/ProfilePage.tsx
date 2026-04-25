@@ -1,22 +1,101 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 
 export default function ProfilePage() {
   const { user } = useAuth();
 
   const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const [form, setForm] = useState({
-    name: user?.name || "Demo User",
-    email: user?.email || "demo@gmail.com",
-    phone: user?.phone || "0123456789",
+  const [modal, setModal] = useState<{
+    open: boolean;
+    type: "success" | "error";
+    message: string;
+  }>({
+    open: false,
+    type: "success",
+    message: "",
   });
 
-  const [avatar, setAvatar] = useState<string | null>(user?.avatar || null);
+  const [avatar, setAvatar] = useState<string | null>(null);
+
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    address: "",
+  });
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+
+  useEffect(() => {
+    if (!user) return;
+
+    const nameParts = (user.name || "").split(" ");
+
+    setForm({
+      firstName: nameParts.slice(0, -1).join(" "),
+      lastName: nameParts.slice(-1)[0] || "",
+      email: user.email || "",
+      phone: user.phone || "",
+      address: (user as any).address || "",
+    });
+
+    setAvatar(user.avatar || null);
+  }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+
+  const handleSave = async () => {
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/auth/me", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          firstName: form.firstName,
+          lastName: form.lastName,
+          phone: form.phone,
+          address: form.address,
+        }),
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        setModal({
+          open: true,
+          type: "error",
+          message: json?.error || "Cập nhật thất bại",
+        });
+        return;
+      }
+
+      setModal({
+        open: true,
+        type: "success",
+        message: "Cập nhật thành công",
+      });
+
+      setIsEditing(false);
+    } catch (err) {
+      setModal({
+        open: true,
+        type: "error",
+        message: "Lỗi server",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -24,15 +103,11 @@ export default function ProfilePage() {
       <section className="section">
         <div
           className="container"
-          style={{
-            display: "flex",
-            justifyContent: "center",
-          }}
+          style={{ display: "flex", justifyContent: "center" }}
         >
-          <div
-            className="auth-card"
-            style={{ width: "100%", maxWidth: 500 }}
-          >
+          <div className="auth-card" style={{ width: "100%", maxWidth: 500 }}>
+
+            {/* HEADER */}
             <div className="auth-card__header">
               <h2>Thông tin cá nhân</h2>
               <p>Cập nhật hồ sơ của bạn</p>
@@ -52,7 +127,6 @@ export default function ProfilePage() {
               >
                 <img
                   src={avatar || "https://via.placeholder.com/120"}
-                  alt="avatar"
                   style={{
                     width: "100%",
                     height: "100%",
@@ -73,7 +147,6 @@ export default function ProfilePage() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: 14,
                     }}
                   >
                     Đổi ảnh
@@ -89,24 +162,30 @@ export default function ProfilePage() {
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
-                    const preview = URL.createObjectURL(file);
-                    setAvatar(preview);
+                    setAvatar(URL.createObjectURL(file));
                   }
                 }}
               />
-
-              <p style={{ marginTop: 10, fontWeight: 500 }}>
-                {form.name}
-              </p>
             </div>
 
             {/* FORM */}
             <div className="auth-form">
+
               <label className="field">
-                <span>Họ và tên</span>
+                <span>Họ</span>
                 <input
-                  name="name"
-                  value={form.name}
+                  name="firstName"
+                  value={form.firstName}
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                />
+              </label>
+
+              <label className="field">
+                <span>Tên</span>
+                <input
+                  name="lastName"
+                  value={form.lastName}
                   onChange={handleChange}
                   disabled={!isEditing}
                 />
@@ -114,12 +193,7 @@ export default function ProfilePage() {
 
               <label className="field">
                 <span>Email</span>
-                <input
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                />
+                <input name="email" value={form.email} disabled />
               </label>
 
               <label className="field">
@@ -132,16 +206,28 @@ export default function ProfilePage() {
                 />
               </label>
 
+              <label className="field">
+                <span>Địa chỉ</span>
+                <input
+                  name="address"
+                  value={form.address}
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                />
+              </label>
+
               {/* BUTTON */}
               <div style={{ marginTop: 16 }}>
                 {isEditing ? (
                   <div style={{ display: "flex", gap: 10 }}>
                     <button
                       className="button button--primary"
-                      onClick={() => setIsEditing(false)}
+                      disabled={loading}
+                      onClick={handleSave}
                     >
-                      Lưu
+                      {loading ? "Đang lưu..." : "Lưu"}
                     </button>
+
                     <button
                       className="button button--ghost"
                       onClick={() => setIsEditing(false)}
@@ -162,6 +248,49 @@ export default function ProfilePage() {
           </div>
         </div>
       </section>
+
+      {/* ================= MODAL ================= */}
+      {modal.open && (
+        <div
+          onClick={() => setModal({ ...modal, open: false })}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              padding: 20,
+              borderRadius: 10,
+              width: 300,
+              textAlign: "center",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3
+              style={{
+                color: modal.type === "success" ? "green" : "red",
+              }}
+            >
+              {modal.type === "success" ? "Thành công" : "Thất bại"}
+            </h3>
+
+            <p>{modal.message}</p>
+
+            <button
+              className="button button--primary"
+              onClick={() => setModal({ ...modal, open: false })}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

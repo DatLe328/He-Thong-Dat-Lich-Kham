@@ -22,7 +22,8 @@ class DoctorDAO:
 
         try:
 
-            existing = User.query.filter_by(email=email).first()
+            email = email.strip().lower()
+            existing = User.query.filter(func.lower(User.email) == email).first()
             if existing:
                 raise Exception("EMAIL_EXISTS")
 
@@ -54,11 +55,14 @@ class DoctorDAO:
             db.session.refresh(doctor)
             return doctor
 
-        except IntegrityError:
-            db.session.rollback()
-            raise Exception("EMAIL_EXISTS")
 
-    # ── READ ──────────────────────────────────────────────────────
+        except IntegrityError as e:
+            db.session.rollback()
+            print("DB ERROR:", str(e))
+
+            raise Exception(str(e))
+
+            # ── READ ──────────────────────────────────────────────────────
     @staticmethod
     def get_by_id(doctor_id: int) -> Optional[Doctor]:
         return Doctor.query.get(doctor_id)
@@ -98,15 +102,33 @@ class DoctorDAO:
             return None
 
         doctor_fields = {"specialization", "licenseNumber", "bio", "clinicID"}
-        user_fields   = {"phone", "gender", "dateOfBirth", "address", "firstName", "lastName"}
+        user_fields   = {"phone", "gender", "dateOfBirth", "address", "firstName", "lastName", "email"}
 
         for key, value in kwargs.items():
             if value is None:
                 continue
+
             if key in doctor_fields:
                 setattr(doctor, key, value)
+
             elif key in user_fields and doctor.user:
-                setattr(doctor.user, key, value)
+
+
+                if key == "email":
+                    email = value.strip().lower()
+
+                    existing = User.query.filter(
+                        func.lower(User.email) == email,
+                        User.userID != doctor.user.userID
+                    ).first()
+
+                    if existing:
+                        raise Exception("EMAIL_EXISTS")
+
+                    doctor.user.email = email
+
+                else:
+                    setattr(doctor.user, key, value)
 
         db.session.commit()
         db.session.refresh(doctor)

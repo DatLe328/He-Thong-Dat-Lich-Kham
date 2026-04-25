@@ -64,18 +64,17 @@ def _ensure_patient_profile(user):
 
 
 def _serialize_auth_user(user, provider="credentials", avatar=None):
-    data = user.to_dict()
     return {
-        "id": str(data["userID"]),
-        "name": f"{data['firstName']} {data['lastName']}".strip(),
-        "email": data["email"],
-        "phone": data["phone"],
-        "role": data["role"],
+        "id": str(user.userID),
+        "name": f"{user.firstName or ''} {user.lastName or ''}".strip(),
+        "email": user.email,
+        "phone": user.phone,
+        "role": str(user.role),
         "provider": provider,
         "avatar": avatar,
-        "gender": data["gender"],
-        "dateOfBirth": data["dateOfBirth"],
-        "address": data["address"],
+        "gender": user.gender,
+        "dateOfBirth": user.dateOfBirth.isoformat() if user.dateOfBirth else None,
+        "address": user.address,
     }
 
 
@@ -321,3 +320,40 @@ def current_user():
 def logout():
     _clear_authenticated_user()
     return jsonify({"message": "Logout success"}), 200
+
+@auth_bp.route("/me", methods=["PUT"])
+def update_profile():
+    user = _get_authenticated_user()
+
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = _get_request_data()
+
+    user.firstName = data.get("firstName", user.firstName)
+    user.lastName = data.get("lastName", user.lastName)
+    user.phone = data.get("phone", user.phone)
+    user.address = data.get("address", user.address)
+
+    # update patient safe
+    patient = Patient.query.filter_by(userID=user.userID).first()
+
+    if patient:
+        patient.fullName = f"{user.firstName} {user.lastName}"
+        patient.phone = user.phone
+        patient.address = user.address
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({
+        "message": "Update profile success",
+        "user": _serialize_auth_user(
+            user,
+            provider=session.get("auth_provider"),
+            avatar=session.get("auth_avatar"),
+        )
+    }), 200

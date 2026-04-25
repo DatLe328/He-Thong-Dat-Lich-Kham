@@ -75,6 +75,10 @@ export default function AdminLayout() {
           📅 Lịch hẹn
         </NavLink>
 
+        <NavLink to="/admin/statistics" className="link">
+          📊 Thống kê
+        </NavLink>
+
 
       </aside>
 

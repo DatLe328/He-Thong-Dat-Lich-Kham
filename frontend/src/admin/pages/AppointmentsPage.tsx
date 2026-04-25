@@ -110,7 +110,7 @@ export default function AppointmentsPage() {
 
   return (
     <div>
-      <h2>Quản lý lịch hẹn</h2>
+      <h2>📅 Quản lý lịch hẹn</h2>
 
       {/* FILTER */}
       <div className="card" style={{ marginBottom: 20 }}>

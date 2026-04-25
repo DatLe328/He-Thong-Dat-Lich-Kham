@@ -37,15 +37,7 @@ function HomePage() {
                 Tìm kiếm bác sĩ
               </Link>
 
-              {!user ? (
-                  <Link to="/auth?tab=login" className="button button--light">
-                    Đăng nhập để bắt đầu
-                  </Link>
-                ) : (
-                  <Link to="/appointments" className="button button--light">
-                     Xem lịch hẹn
-                  </Link>
-                )}
+
 
             </div>
 

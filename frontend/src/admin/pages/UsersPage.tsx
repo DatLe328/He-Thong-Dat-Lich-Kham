@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import "../../styles/admin.css";
 
 type User = {
   userID: number;
@@ -6,6 +7,10 @@ type User = {
   lastName?: string;
   email: string;
   role: string;
+  phone?: string;
+  gender?: string;
+  address?: string;
+  dateOfBirth?: string;
 };
 
 export default function UsersPage() {
@@ -17,7 +22,12 @@ export default function UsersPage() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+
   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  // ===== NEW CONFIRM MODAL =====
+  const [confirmUpdate, setConfirmUpdate] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [error, setError] = useState("");
 
@@ -27,16 +37,19 @@ export default function UsersPage() {
     email: "",
     password: "",
     role: "PATIENT",
+    phone: "",
+    gender: "Nam",
+    address: "",
+    dateOfBirth: "",
   });
 
-  // ================= FETCH =================
   useEffect(() => {
     fetchUsers();
   }, []);
 
   const fetchUsers = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
       const res = await fetch("/api/users");
       const json = await res.json();
       setData(json?.data || []);
@@ -45,21 +58,17 @@ export default function UsersPage() {
     }
   };
 
-  // ================= FILTER + SORT =================
   const filteredData = useMemo(() => {
-    let result = [...data].sort((a, b) => a.userID - b.userID);
+    let result = [...data];
 
     if (roleFilter !== "ALL") {
       result = result.filter((u) => u.role === roleFilter);
     }
 
-    if (search.trim()) {
+    if (search) {
       const k = search.toLowerCase();
-
       result = result.filter((u) =>
-        (
-          `${u.firstName || ""} ${u.lastName || ""} ${u.email} ${u.role} ${u.userID}`
-        )
+        `${u.firstName} ${u.lastName} ${u.email} ${u.phone}`
           .toLowerCase()
           .includes(k)
       );
@@ -68,53 +77,65 @@ export default function UsersPage() {
     return result;
   }, [data, search, roleFilter]);
 
-  // ================= FORMAT ROLE =================
-  const formatRole = (role: string) => {
-    switch (role) {
-      case "ADMIN":
-        return "Quản trị viên";
-      case "DOCTOR":
-        return "Bác sĩ";
-      default:
-        return "Người dùng";
-    }
-  };
-
-  // ================= VALIDATE =================
   const validate = () => {
-    if (!form.firstName || !form.lastName || !form.email || (!editingId && !form.password)) {
-      setError("⚠️ Vui lòng nhập đầy đủ thông tin");
+    if (!form.firstName || !form.lastName || !form.email) {
+      setError("❌ Nhập đầy đủ họ tên và email");
       return false;
     }
+
+    if (!editingId && !form.password) {
+      setError("❌ Nhập mật khẩu");
+      return false;
+    }
+
     setError("");
     return true;
   };
 
-  // ================= SUBMIT =================
-  const handleSubmit = async () => {
+  // =========================
+  // STEP 1: CLICK SAVE -> CONFIRM
+  // =========================
+  const handleSubmitClick = () => {
     if (!validate()) return;
+    setConfirmUpdate(true);
+  };
 
-    const url = editingId ? `/api/users/${editingId}` : "/api/users";
-    const method = editingId ? "PUT" : "POST";
+  // =========================
+  // STEP 2: CONFIRM UPDATE
+  // =========================
+  const handleSubmit = async () => {
+    const body: any = {
+      ...form,
+      role: "PATIENT",
+      email: form.email.trim().toLowerCase(),
+      phone: form.phone || null,
+      address: form.address || null,
+      dateOfBirth: form.dateOfBirth || null,
+    };
 
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
+    if (editingId && !form.password) delete body.password;
+
+    const res = await fetch(
+      editingId ? `/api/users/${editingId}` : "/api/users",
+      {
+        method: editingId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
 
     const json = await res.json();
 
     if (!res.ok) {
-      setError(json.message || "❌ Lỗi");
+      setError(json.message || "❌ Có lỗi xảy ra");
       return;
     }
 
+    setConfirmUpdate(false);
     closeForm();
     fetchUsers();
   };
 
-  // ================= EDIT =================
   const handleEdit = async (id: number) => {
     const res = await fetch(`/api/users/${id}`);
     const json = await res.json();
@@ -126,6 +147,10 @@ export default function UsersPage() {
       email: u.email || "",
       password: "",
       role: u.role || "PATIENT",
+      phone: u.phone || "",
+      gender: u.gender || "Nam",
+      address: u.address || "",
+      dateOfBirth: u.dateOfBirth ? u.dateOfBirth.split("T")[0] : "",
     });
 
     setEditingId(id);
@@ -133,21 +158,22 @@ export default function UsersPage() {
     setError("");
   };
 
-  // ================= DELETE =================
+  // =========================
+  // DELETE CONFIRM FLOW
+  // =========================
+  const handleDeleteClick = (id: number) => {
+    setDeleteId(id);
+    setConfirmDelete(true);
+  };
+
   const handleDelete = async () => {
     if (!deleteId) return;
 
-    const res = await fetch(`/api/users/${deleteId}`, {
-      method: "DELETE",
-    });
-
-    if (!res.ok) {
-      setError("❌ Xóa thất bại");
-      return;
-    }
+    await fetch(`/api/users/${deleteId}`, { method: "DELETE" });
 
     setData((prev) => prev.filter((u) => u.userID !== deleteId));
     setDeleteId(null);
+    setConfirmDelete(false);
   };
 
   const closeForm = () => {
@@ -160,17 +186,18 @@ export default function UsersPage() {
       email: "",
       password: "",
       role: "PATIENT",
+      phone: "",
+      gender: "MALE",
+      address: "",
+      dateOfBirth: "",
     });
   };
 
-  // ================= UI =================
   return (
-    <div>
+    <div className="content">
       <h2>👤 Quản lý người dùng</h2>
 
       <div className="card table-wrapper">
-
-        {/* TOOLBAR */}
         <div className="toolbar">
           <input
             className="search-input"
@@ -185,22 +212,18 @@ export default function UsersPage() {
             onChange={(e) => setRoleFilter(e.target.value)}
           >
             <option value="ALL">Tất cả</option>
-            <option value="ADMIN">Quản trị viên</option>
+            <option value="ADMIN">Admin</option>
             <option value="DOCTOR">Bác sĩ</option>
             <option value="PATIENT">Người dùng</option>
           </select>
 
-          <button
-            className="btn btn-primary"
-            onClick={() => setShowForm(true)}
-          >
-            ➕ Thêm người dùng
+          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+            ➕ Thêm
           </button>
         </div>
 
-        {/* TABLE */}
         {loading ? (
-          <p>⏳ Đang tải...</p>
+          <p>Đang tải...</p>
         ) : (
           <table className="table">
             <thead>
@@ -208,25 +231,36 @@ export default function UsersPage() {
                 <th>ID</th>
                 <th>Họ tên</th>
                 <th>Email</th>
+                <th>SĐT</th>
                 <th>Vai trò</th>
-                <th>Thao tác</th>
+                <th></th>
               </tr>
             </thead>
-
             <tbody>
               {filteredData.map((u) => (
                 <tr key={u.userID}>
                   <td>{u.userID}</td>
                   <td>{u.firstName} {u.lastName}</td>
                   <td>{u.email}</td>
-                  <td>{formatRole(u.role)}</td>
+                  <td>{u.phone}</td>
+                  <td>
+                    <span className={`role-badge role-${u.role.toLowerCase()}`}>
+                      {u.role}
+                    </span>
+                  </td>
                   <td>
                     <button className="btn" onClick={() => handleEdit(u.userID)}>
                       Sửa
                     </button>
-                    <button className="btn btn-danger" onClick={() => setDeleteId(u.userID)}>
-                      Xóa
-                    </button>
+                    {u.role !== "ADMIN" && (
+                          <button
+                            className="btn btn-danger"
+                            onClick={() => handleDeleteClick(u.userID)}
+                          >
+                            Xóa
+                          </button>
+                        )}
+
                   </td>
                 </tr>
               ))}
@@ -235,75 +269,110 @@ export default function UsersPage() {
         )}
       </div>
 
-      {/* FORM */}
+      {/* ================= FORM ================= */}
       {showForm && (
         <div className="modal-overlay">
           <div className="modal-card fancy-modal">
-            <h3>{editingId ? "Sửa người dùng" : "Thêm người dùng"}</h3>
+            <h3>{editingId ? "✏️ Sửa người dùng" : "➕ Thêm người dùng"}</h3>
 
             {error && <p style={{ color: "red" }}>{error}</p>}
 
             <div className="form-grid">
-              <input
-                placeholder="Họ"
-                value={form.firstName}
-                onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-              />
+              <div>
+                <label>Họ</label>
+                <input value={form.firstName}
+                  onChange={(e) => setForm({ ...form, firstName: e.target.value })} />
+              </div>
 
-              <input
-                placeholder="Tên"
-                value={form.lastName}
-                onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-              />
+              <div>
+                <label>Tên</label>
+                <input value={form.lastName}
+                  onChange={(e) => setForm({ ...form, lastName: e.target.value })} />
+              </div>
 
-              <input
-                placeholder="Email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
+              <div className="full">
+                <label>Email</label>
+                <input value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              </div>
 
               {!editingId && (
-                <input
-                  type="password"
-                  placeholder="Mật khẩu"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                />
+                <div>
+                  <label>Mật khẩu</label>
+                  <input type="password" value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                </div>
               )}
 
-              <select
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
-              >
-                <option value="PATIENT">Người dùng</option>
-                <option value="DOCTOR">Bác sĩ</option>
-                <option value="ADMIN">Quản trị viên</option>
-              </select>
+              <div>
+                <label>SĐT</label>
+                <input value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              </div>
+
+              <div>
+                <label>Ngày sinh</label>
+                <input type="date" value={form.dateOfBirth}
+                  onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} />
+              </div>
+
+              <div>
+                <label>Giới tính</label>
+                <select value={form.gender}
+                  onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+                  <option value="Nam">Nam</option>
+                  <option value="Nữ">Nữ</option>
+                </select>
+              </div>
+
+              <div className="full">
+                <label>Địa chỉ</label>
+                <input value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              </div>
+
+
             </div>
 
             <div className="modal-actions">
-              <button className="btn btn-primary" onClick={handleSubmit}>
+              <button className="btn btn-primary" onClick={handleSubmitClick}>
                 💾 Lưu
               </button>
               <button className="btn btn-outline" onClick={closeForm}>
-                ❌ Hủy
+                Hủy
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* DELETE */}
-      {deleteId && (
+      {/* ================= CONFIRM UPDATE ================= */}
+      {confirmUpdate && (
         <div className="modal-overlay">
           <div className="modal-card">
-            <h3>Xóa người dùng?</h3>
+            <h3>Xác nhận cập nhật?</h3>
+            <div className="modal-actions">
+              <button className="btn btn-primary" onClick={handleSubmit}>
+                Đồng ý
+              </button>
+              <button className="btn btn-outline" onClick={() => setConfirmUpdate(false)}>
+                Hủy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* ================= CONFIRM DELETE ================= */}
+      {confirmDelete && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h3>Xác nhận xóa?</h3>
             <div className="modal-actions">
               <button className="btn btn-danger" onClick={handleDelete}>
                 Xóa
               </button>
-              <button className="btn btn-outline" onClick={() => setDeleteId(null)}>
+              <button className="btn btn-outline" onClick={() => setConfirmDelete(false)}>
                 Hủy
               </button>
             </div>

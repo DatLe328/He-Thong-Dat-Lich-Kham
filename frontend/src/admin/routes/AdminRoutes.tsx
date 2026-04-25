@@ -1,6 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import AdminLayout from "../layout/AdminLayout";
-import Dashboard from "../pages/Dashboard";
+import StatisticsPage from "../pages/StatisticsPage";
 import UsersPage from "../pages/UsersPage";
 import DoctorsPage from "../pages/DoctorsPage";
 import AppointmentsPage from "../pages/AppointmentsPage";
@@ -13,6 +13,7 @@ export default function AdminRoutes() {
         <Route path="users" element={<UsersPage />} />
         <Route path="doctors" element={<DoctorsPage />} />
         <Route path="appointments" element={<AppointmentsPage />} />
+        <Route path="statistics" element={<StatisticsPage />} />
       </Route>
     </Routes>
   );
