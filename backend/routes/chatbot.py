@@ -113,6 +113,7 @@ def _patient_appointments_context(user_id: int | None, limit: int = 10):
 def _build_system_prompt() -> str:
     return (
         "Ban la tro ly tu van cho he thong dat lich kham. "
+        "Duoc phep tra loi cac cau xa giao co ban nhu chao hoi va gioi thieu ban than. "
         "Chi duoc tra loi cac chu de lien quan den: suc khoe, trieu chung thong thuong, "
         "benh vien/phong kham, bac si, chuyen khoa, lich hen kham, quy trinh dat lich. "
         "Neu cau hoi ngoai pham vi, tu choi lich su va huong nguoi dung quay lai chu de y te. "
@@ -124,12 +125,16 @@ def _build_system_prompt() -> str:
 
 def _build_scope_prompt(question: str) -> str:
     return (
-        "Hay phan loai cau hoi sau co thuoc pham vi ho tro cua tro ly dat lich kham hay khong. "
+        "Hay phan tich cau hoi cua nguoi dung va phan loai y dinh. "
         "Chi tra ve JSON hop le, khong them chu thich, khong markdown. "
-        "Dinh dang bat buoc: {\"in_scope\": true/false, \"reason\": \"...\"}. "
-        "Cau hoi chi duoc coi la in_scope neu lien quan den suc khoe, trieu chung, bac si, "
+        "Dinh dang bat buoc: "
+        "{\"in_scope\": true/false, \"intent\": \"...\", \"reason\": \"...\"}. "
+        "intent phai la mot trong cac gia tri: "
+        "greeting, assistant_identity, doctor_info, appointment_info, booking_guidance, health_general, out_of_scope. "
+        "greeting va assistant_identity duoc coi la in_scope=true. "
+        "Cau hoi in_scope=true neu lien quan den suc khoe, trieu chung, bac si, "
         "benh vien, phong kham, chuyen khoa, xet nghiem, lich hen, quy trinh dat lich, hoac cham soc benh nhan. "
-        "Neu khong chac chan, hay tra ve in_scope=false. "
+        "Neu khong chac chan, hay dat intent=out_of_scope va in_scope=false. "
         f"Cau hoi: {question}"
     )
 
@@ -204,10 +209,13 @@ def _call_llm(provider: str, system_prompt: str, prompt: str, json_mode: bool = 
     return _call_ollama(system_prompt, prompt, json_mode=json_mode)
 
 
-def _build_answer_prompt(question: str, context: dict):
+def _build_answer_prompt(question: str, context: dict, intent: str, reason: str):
     return (
         "[THOI GIAN HE THONG]\n"
         f"{datetime.utcnow().isoformat()}Z\n\n"
+        "[PHAN LOAI CAU HOI]\n"
+        f"intent={intent}\n"
+        f"reason={reason or 'N/A'}\n\n"
         "[CONTEXT BACKEND]\n"
         f"{context}\n\n"
         "[CAU HOI BENH NHAN]\n"
@@ -215,15 +223,16 @@ def _build_answer_prompt(question: str, context: dict):
         "[YEU CAU TRA LOI]\n"
         "- Uu tien thong tin tu context backend neu co.\n"
         "- Neu khong du du lieu cu the, noi ro va huong dan buoc tiep theo.\n"
+        "- Neu intent la greeting hoac assistant_identity thi tra loi ngan gon, than thien, khong can liet ke context.\n"
         "- Khong tra loi ngoai pham vi y te/phong kham/bac si/lich hen."
     )
 
 
-def _generate_answer(provider: str, question: str, context: dict):
+def _generate_answer(provider: str, question: str, context: dict, intent: str, reason: str):
     answer = _call_llm(
         provider=provider,
         system_prompt=_build_system_prompt(),
-        prompt=_build_answer_prompt(question, context),
+        prompt=_build_answer_prompt(question, context, intent, reason),
         json_mode=False,
     )
     if not answer:
@@ -231,7 +240,7 @@ def _generate_answer(provider: str, question: str, context: dict):
     return answer
 
 
-def _classify_scope(provider: str, question: str) -> tuple[bool, str]:
+def _classify_scope(provider: str, question: str) -> tuple[bool, str, str]:
     raw_output = _call_llm(
         provider=provider,
         system_prompt=(
@@ -245,11 +254,12 @@ def _classify_scope(provider: str, question: str) -> tuple[bool, str]:
     try:
         result = json.loads(raw_output)
     except json.JSONDecodeError:
-        return False, "Khong the xac dinh pham vi cau hoi."
+        return False, "out_of_scope", "Khong the xac dinh pham vi cau hoi."
 
     in_scope = bool(result.get("in_scope"))
+    intent = str(result.get("intent") or "out_of_scope").strip() or "out_of_scope"
     reason = str(result.get("reason") or "")
-    return in_scope, reason
+    return in_scope, intent, reason
 
 
 @chatbot_bp.route("/ask", methods=["POST"])
@@ -263,7 +273,7 @@ def ask_chatbot():
         return _err("Thiếu question.")
 
     try:
-        in_scope, reason = _classify_scope(provider, question)
+        in_scope, intent, reason = _classify_scope(provider, question)
     except requests.RequestException:
         return _err(
             f"Khong ket noi duoc {provider} de kiem tra pham vi cau hoi.",
@@ -282,6 +292,7 @@ def ask_chatbot():
                     "benh vien/phong kham va lich hen kham."
                 ),
                 "scope": "out-of-scope",
+                "intent": intent,
                 "reason": reason or "Cau hoi khong thuoc pham vi ho tro.",
                 "provider": provider,
             },
@@ -293,8 +304,8 @@ def ask_chatbot():
             "topDoctors": _doctor_context(max_doctors=10),
             "patientAppointments": _patient_appointments_context(user_id=user_id, limit=10),
         }
-        answer = _generate_answer(provider, question, context)
-        return _ok({"answer": answer, "scope": "in-scope", "provider": provider})
+        answer = _generate_answer(provider, question, context, intent, reason)
+        return _ok({"answer": answer, "scope": "in-scope", "intent": intent, "provider": provider})
     except requests.RequestException:
         return _err(
             f"Khong ket noi duoc {provider}. Vui long kiem tra cau hinh va thu lai.",
