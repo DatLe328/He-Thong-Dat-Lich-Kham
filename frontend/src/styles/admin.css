@@ -58,6 +58,14 @@
   box-shadow: 0 6px 20px rgba(0,0,0,0.06);
 }
 
+.content > .card {
+  margin-bottom: 24px;
+}
+
+.content > .card:last-child {
+  margin-bottom: 0;
+}
+
 .table-wrapper {
   margin-top: 20px;
 }
@@ -290,7 +298,7 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 15px;
-  margin: 20px 0;
+  margin: 24px 0;
 }
 
 .stat-card {

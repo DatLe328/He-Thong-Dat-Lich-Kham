@@ -2,7 +2,9 @@ export async function bookAppointment(payload: {
   userId?: number;
   doctorId: number;
   scheduleId: number;
+  clinicId?: number | null;
   appointmentDate: string;
+  note?: string;
 
   // dùng 1 field duy nhất cho backend
   mode: "self" | "proxy" | "guest";
@@ -19,6 +21,7 @@ export async function bookAppointment(payload: {
   const body: any = {
     doctorId: Number(payload.doctorId),
     scheduleId: Number(payload.scheduleId),
+    clinicId: payload.clinicId ? Number(payload.clinicId) : undefined,
     appointmentDate: payload.appointmentDate,
     mode: payload.mode,
     note: payload.note?.trim() || ""

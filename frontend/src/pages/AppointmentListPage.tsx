@@ -1,10 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 
+type AppointmentReview = {
+  reviewId: number;
+  appointmentId: number;
+  rating: number;
+  comment: string | null;
+};
+
+const getDoctorName = (appointment: any) =>
+  appointment.doctorName || appointment.doctor?.name || "Bác sĩ";
+
 function AppointmentListPage() {
   const { user } = useAuth();
 
   const [appointments, setAppointments] = useState<any[]>([]);
+  const [reviewsByAppointment, setReviewsByAppointment] = useState<Record<number, AppointmentReview>>({});
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -15,6 +26,12 @@ function AppointmentListPage() {
   const [cancelId, setCancelId] = useState<number | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+
+  const [reviewAppointment, setReviewAppointment] = useState<any | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [searchDoctor, setSearchDoctor] = useState("");
@@ -45,13 +62,49 @@ function AppointmentListPage() {
         return;
       }
 
-      setAppointments(data.data || []);
+      const nextAppointments = data.data || [];
+      setAppointments(nextAppointments);
+      await fetchAppointmentReviews(nextAppointments);
     } catch {
       setError("Lỗi kết nối server");
       setAppointments([]);
+      setReviewsByAppointment({});
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchAppointmentReviews = async (nextAppointments: any[]) => {
+    const completedAppointments = nextAppointments.filter(
+      (appointment) => appointment.status === "COMPLETED"
+    );
+
+    if (!completedAppointments.length) {
+      setReviewsByAppointment({});
+      return;
+    }
+
+    const entries = await Promise.all(
+      completedAppointments.map(async (appointment) => {
+        try {
+          const res = await fetch(`/api/reviews/appointment/${appointment.appointmentId}`);
+          if (res.status === 404) return null;
+
+          const data = await res.json();
+          if (!res.ok || !data.success || !data.data) return null;
+
+          return [appointment.appointmentId, data.data] as const;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    const reviewEntries = entries.filter(
+      (entry): entry is readonly [number, AppointmentReview] => entry !== null
+    );
+
+    setReviewsByAppointment(Object.fromEntries(reviewEntries));
   };
 
   useEffect(() => {
@@ -78,7 +131,7 @@ function AppointmentListPage() {
       list = list.filter((a) => a.status === statusFilter);
     }
     if (searchDoctor.trim()) {
-      list = list.filter((a) => a.doctorName?.toLowerCase().includes(searchDoctor.toLowerCase()));
+      list = list.filter((a) => getDoctorName(a).toLowerCase().includes(searchDoctor.toLowerCase()));
     }
     return list;
   }, [appointments, statusFilter, searchDoctor]);
@@ -137,6 +190,64 @@ function AppointmentListPage() {
       setShowCancelModal(false);
       fetchAppointments();
     } catch (err: any) { alert(err.message); }
+  };
+
+  const openReviewModal = (appointment: any) => {
+    setReviewAppointment(appointment);
+    setReviewRating(5);
+    setReviewComment("");
+    setReviewError("");
+  };
+
+  const closeReviewModal = () => {
+    if (reviewSubmitting) return;
+    setReviewAppointment(null);
+    setReviewError("");
+  };
+
+  const submitReview = async () => {
+    if (!reviewAppointment) return;
+
+    const patientId = reviewAppointment.patientId || reviewAppointment.patient?.patientID;
+    if (!patientId) {
+      setReviewError("Không tìm thấy mã bệnh nhân của lịch hẹn này.");
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewError("");
+
+    try {
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          patientId,
+          appointmentId: reviewAppointment.appointmentId,
+          rating: reviewRating,
+          comment: reviewComment.trim() || undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Không thể gửi đánh giá.");
+      }
+
+      setReviewsByAppointment((current) => ({
+        ...current,
+        [reviewAppointment.appointmentId]: data.data,
+      }));
+      setReviewAppointment(null);
+      fetchAppointments();
+    } catch (err: any) {
+      setReviewError(err.message || "Không thể gửi đánh giá.");
+    } finally {
+      setReviewSubmitting(false);
+    }
   };
 
   const renderStatus = (a: any, timeLeft?: number) => {
@@ -202,7 +313,7 @@ function AppointmentListPage() {
               return (
                 <div key={a.appointmentId} className="content-card">
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <h3>{a.doctorName}</h3>
+                    <h3>{getDoctorName(a)}</h3>
                     {renderStatus(a, timeLeft)}
                   </div>
                   <p>{a.clinicName}</p>
@@ -221,6 +332,13 @@ function AppointmentListPage() {
                     </p>
                   )}
 
+                  {a.status === "COMPLETED" && reviewsByAppointment[a.appointmentId] && (
+                    <div className="review-summary">
+                      <strong>Đánh giá của bạn: {reviewsByAppointment[a.appointmentId].rating}/5</strong>
+                      <p>{reviewsByAppointment[a.appointmentId].comment || "Bạn chưa nhập nhận xét chi tiết."}</p>
+                    </div>
+                  )}
+
                   <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                     {a.status === "PENDING" && !isExpired && (
                       <button className="button button--primary" onClick={() => { setPayingId(a.appointmentId); setShowPayModal(true); }}>
@@ -230,6 +348,11 @@ function AppointmentListPage() {
                     {a.status !== "CANCELLED" && a.status !== "COMPLETED" && (
                       <button className="button button--outline" onClick={() => { setCancelId(a.appointmentId); setShowCancelModal(true); }}>
                         Huỷ lịch
+                      </button>
+                    )}
+                    {a.status === "COMPLETED" && !reviewsByAppointment[a.appointmentId] && (
+                      <button className="button button--primary" onClick={() => openReviewModal(a)}>
+                        Đánh giá bác sĩ
                       </button>
                     )}
                   </div>
@@ -266,6 +389,52 @@ function AppointmentListPage() {
             <div className="modal-actions">
               <button className="button button--outline" onClick={() => setShowCancelModal(false)}>Không</button>
               <button className="button button--primary" onClick={confirmCancel}>Xác nhận huỷ</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {reviewAppointment && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-header">
+              <h3>Đánh giá bác sĩ</h3>
+              <button onClick={closeReviewModal}>✕</button>
+            </div>
+            <div className="modal-body">
+              <p>
+                {getDoctorName(reviewAppointment)} -{" "}
+                {new Date(reviewAppointment.appointmentDate).toLocaleString("vi-VN")}
+              </p>
+              <div className="rating-picker" aria-label="Chọn số sao đánh giá">
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={value <= reviewRating ? "rating-picker__star active" : "rating-picker__star"}
+                    onClick={() => setReviewRating(value)}
+                    aria-label={`${value} sao`}
+                  >
+                    ★
+                  </button>
+                ))}
+              </div>
+              <textarea
+                className="input"
+                rows={4}
+                placeholder="Chia sẻ trải nghiệm khám của bạn..."
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+              />
+              {reviewError && <p className="form-error">{reviewError}</p>}
+            </div>
+            <div className="modal-actions">
+              <button className="button button--outline" onClick={closeReviewModal} disabled={reviewSubmitting}>
+                Huỷ
+              </button>
+              <button className="button button--primary" onClick={submitReview} disabled={reviewSubmitting}>
+                {reviewSubmitting ? "Đang gửi..." : "Gửi đánh giá"}
+              </button>
             </div>
           </div>
         </div>

@@ -269,7 +269,7 @@ def get_reviews(doctor_id):
 
     return jsonify({
         "success":     True,
-        "data":        [r.to_dict() for r in doctor.reviews],
+        "data":        [r.to_dict(include_patient=True) for r in doctor.reviews],
         "total":       len(doctor.reviews),
         "avgRating":   doctor.rating,
     }), 200

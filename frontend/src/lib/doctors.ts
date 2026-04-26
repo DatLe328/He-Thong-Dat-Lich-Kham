@@ -104,6 +104,7 @@ function mapDoctor(apiDoctor: ApiDoctor): DirectoryDoctor {
   return {
     id: String(apiDoctor.doctorID),
     doctorId: apiDoctor.doctorID,
+    clinicId: apiDoctor.clinicID,
     name,
     firstName,
     lastName,
@@ -187,7 +188,7 @@ function mapSchedules(schedules: ApiDoctorSchedule[]): DoctorScheduleDay[] {
 function mapReviews(payload: ApiDoctorReviewsResponse): DoctorReview[] {
   return payload.data.map((review) => ({
     id: String(review.reviewId),
-    patientName: `Bệnh nhân #${review.patientId}`,
+    patientName: review.patient?.fullName?.trim() || `Bệnh nhân #${review.patientId}`,
     rating: review.rating,
     comment: review.comment?.trim() || "Chưa có nhận xét chi tiết.",
     createdAt: new Intl.DateTimeFormat("vi-VN", {
