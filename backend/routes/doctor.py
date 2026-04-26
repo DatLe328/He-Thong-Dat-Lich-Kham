@@ -39,7 +39,7 @@ def create_doctor():
     try:
         doctor = DoctorDAO.create(
             firstName=d["firstName"], lastName=d["lastName"],
-            email=d["email"],        password=d["password"],
+            email=d["email"].strip().lower(),        password=d["password"],
             specialization=d.get("specialization"),
             licenseNumber =d.get("licenseNumber"),
             bio           =d.get("bio"),
@@ -50,7 +50,28 @@ def create_doctor():
             address       =d.get("address"),
         )
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 409
+        msg = str(e)
+
+        print("ERROR:", msg)  # debug
+
+        if "EMAIL_EXISTS" in msg:
+            return jsonify({
+                "success": False,
+                "message": "❌ Email đã tồn tại"
+            }), 409
+
+        if "phone" in msg.lower():
+            return jsonify({
+                "success": False,
+                "message": "❌ Số điện thoại đã tồn tại"
+            }), 409
+
+        return jsonify({
+            "success": False,
+            "message": msg  # 👈 trả thẳng lỗi thật
+        }), 409
+
+
 
     return jsonify({"success": True, "message": "Tạo bác sĩ thành công.", "data": doctor.to_dict()}), 201
 
@@ -84,13 +105,33 @@ def get_doctor(doctor_id):
 @doctor_bp.route("/<int:doctor_id>", methods=["PUT"])
 def update_doctor(doctor_id):
     d = request.get_json(silent=True) or {}
+
     if "dateOfBirth" in d:
         d["dateOfBirth"] = _date(d["dateOfBirth"])
 
-    doctor = DoctorDAO.update_profile(doctor_id, **d)
+    try:
+        doctor = DoctorDAO.update_profile(doctor_id, **d)
+
+    except Exception as e:
+        if "EMAIL_EXISTS" in str(e):
+            return jsonify({
+                "success": False,
+                "message": "Email đã tồn tại"
+            }), 409
+
+        return jsonify({
+            "success": False,
+            "message": "Cập nhật thất bại"
+        }), 400
+
     if not doctor:
         return _not_found()
-    return jsonify({"success": True, "message": "Cập nhật thành công.", "data": doctor.to_dict()}), 200
+
+    return jsonify({
+        "success": True,
+        "message": "Cập nhật thành công.",
+        "data": doctor.to_dict()
+    }), 200
 
 
 @doctor_bp.route("/<int:doctor_id>", methods=["DELETE"])

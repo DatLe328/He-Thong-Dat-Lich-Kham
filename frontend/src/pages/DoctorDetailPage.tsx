@@ -35,8 +35,10 @@ function DoctorDetailPage() {
     phone: "",
     gender: "",
     address: "",
+    note: "",
 
   });
+  const [note, setNote] = useState("");
 
   const handleClosePayment = () => {
     setShowPayModal(false);
@@ -82,7 +84,8 @@ function DoctorDetailPage() {
         scheduleId: Number(selected.scheduleId),
         appointmentDate: `${selected.workDate}T${selected.time}:00`,
         mode: mode,
-        clinicId: doctor.clinicId
+        clinicId: doctor.clinicId,
+        note: (note || proxyForm.note || "").trim()
       };
 
       if (user?.id) {
@@ -118,11 +121,12 @@ function DoctorDetailPage() {
       setPendingAppointmentId(appointmentId);
       setShowPayModal(true);
 
-      // Reset trạng thái sau khi book thành công
+
       setSelected(null);
       setShowGuestForm(false);
       setShowProxyModal(false);
-      setProxyForm({ firstName: "", lastName: "", email: "", phone: "", gender: "", address: "" });
+      setProxyForm({ firstName: "", lastName: "", email: "", phone: "", gender: "", address: "",dateOfBirth: "", note: "" });
+      setNote("");
 
     } catch (e: any) {
       alert(e.response?.data?.message || e.message || "Lỗi đặt lịch");
@@ -237,7 +241,16 @@ function DoctorDetailPage() {
             {/* 3. BOOKING BAR */}
             {selected && (
               <div className="booking-actions-bar animate-fade-in" style={{ marginBottom: 24 }}>
-                <div className="booking-info"><p>Đang chọn: <strong>{selected.time}</strong> ngày <strong>{selected.workDate}</strong></p></div>
+                <div className="booking-info">
+                <p>Đang chọn: <strong>{selected.time}</strong> ngày <strong>{selected.workDate}</strong></p>
+                 <textarea
+                    className="input"
+                    placeholder="Ghi chú (triệu chứng, yêu cầu...)"
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    style={{ marginTop: 10, minWidth: 300}}
+                  />
+                </div>
                 <div className="button-group">
                   <button
                     className="button button--primary"
@@ -296,6 +309,12 @@ function DoctorDetailPage() {
                 <option value="">Giới tính</option><option value="male">Nam</option><option value="female">Nữ</option>
               </select>
               <input className="input" placeholder="Địa chỉ *" value={proxyForm.address} onChange={(e) => setProxyForm({ ...proxyForm, address: e.target.value })} />
+              <textarea
+                  className="input"
+                  placeholder="Ghi chú (triệu chứng, yêu cầu...)"
+                  value={proxyForm.note}
+                  onChange={(e) => setProxyForm({ ...proxyForm, note: e.target.value })}
+                />
             </div>
             <div className="modal-actions">
               <button className="button button--outline" onClick={() => setShowProxyModal(false)}>Huỷ</button>
@@ -329,6 +348,12 @@ function DoctorDetailPage() {
                 <option value="">Giới tính</option><option value="male">Nam</option><option value="female">Nữ</option>
               </select>
               <input className="input" placeholder="Địa chỉ *" value={proxyForm.address} onChange={(e) => setProxyForm({ ...proxyForm, address: e.target.value })} />
+              <textarea
+                  className="input"
+                  placeholder="Ghi chú (triệu chứng, yêu cầu...)"
+                  value={proxyForm.note}
+                  onChange={(e) => setProxyForm({ ...proxyForm, note: e.target.value })}
+                />
             </div>
             <div className="modal-actions">
               <button className="button button--outline" onClick={() => setShowGuestForm(false)}>Huỷ</button>

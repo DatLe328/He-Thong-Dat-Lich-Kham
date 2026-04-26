@@ -72,7 +72,7 @@ function AppointmentListPage() {
   // ======================
   const filteredAppointments = useMemo(() => {
     let list = [...appointments];
-    list.sort((a, b) => new Date(b.appointmentDate).getTime() - new Date(a.appointmentDate).getTime());
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
     if (statusFilter !== "ALL") {
       list = list.filter((a) => a.status === statusFilter);
@@ -173,7 +173,7 @@ function AppointmentListPage() {
 
 
           {appointments.length > 0 && (
-            <div className="content-card">
+            <div className="content-card"  style={{ marginBottom: 20 }}>
               <div className="form-row" style={{ gap: 10 }}>
 
                 <select
@@ -209,9 +209,11 @@ function AppointmentListPage() {
                   <p>📅 {new Date(a.appointmentDate).toLocaleString("vi-VN")}</p>
                   <p>💰 Cọc: 50.000đ</p>
                   <p>🕒 Đặt lúc: {new Date(a.createdAt).toLocaleString("vi-VN")}</p>
+                  {a.note && <p>📝 Ghi chú: {a.note}</p>}
                   <p>
                   ⏳ Hết hạn: {a.expiresAt ? new Date(a.expiresAt).toLocaleString("vi-VN") : "Chưa có"}
                   </p>
+
 
                   {a.status === "PENDING" && timeLeft !== undefined && (
                     <p style={{ color: isExpired ? "red" : "orange" }}>
@@ -259,7 +261,7 @@ function AppointmentListPage() {
             <div className="modal-header"><h3>Huỷ lịch hẹn</h3><button onClick={() => setShowCancelModal(false)}>✕</button></div>
             <div className="modal-body">
               <p>Bạn có chắc muốn huỷ lịch này?</p>
-              <textarea className="input" placeholder="Lý do huỷ..." value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
+              <textarea className="input" placeholder="Lý do huỷ (không bắt buộc)" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
             </div>
             <div className="modal-actions">
               <button className="button button--outline" onClick={() => setShowCancelModal(false)}>Không</button>

@@ -5,6 +5,7 @@ from models.user    import User, UserRole
 from models.doctor  import Doctor
 from models.appointment import Appointment, AppointmentStatus
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError
 
 
 class DoctorDAO:
@@ -12,35 +13,56 @@ class DoctorDAO:
     # ── CREATE ────────────────────────────────────────────────────
     @staticmethod
     def create(
-        firstName: str, lastName: str, email: str, password: str,
-        specialization: str = None, licenseNumber: str = None,
-        bio: str = None, clinicID: int = None,
-        phone: str = None, gender: str = None,
-        dateOfBirth=None, address: str = None,
+            firstName: str, lastName: str, email: str, password: str,
+            specialization: str = None, licenseNumber: str = None,
+            bio: str = None, clinicID: int = None,
+            phone: str = None, gender: str = None,
+            dateOfBirth=None, address: str = None,
     ) -> Doctor:
-        user = User(
-            firstName=firstName, lastName=lastName,
-            email=email, phone=phone, gender=gender,
-            dateOfBirth=dateOfBirth, address=address,
-            role=UserRole.DOCTOR,
-        )
-        user.set_password(password)
-        db.session.add(user)
-        db.session.flush()
 
-        doctor = Doctor(
-            userID=user.userID,
-            clinicID=clinicID,
-            specialization=specialization,
-            licenseNumber=licenseNumber,
-            bio=bio,
-        )
-        db.session.add(doctor)
-        db.session.commit()
-        db.session.refresh(doctor)
-        return doctor
+        try:
 
-    # ── READ ──────────────────────────────────────────────────────
+            email = email.strip().lower()
+            existing = User.query.filter(func.lower(User.email) == email).first()
+            if existing:
+                raise Exception("EMAIL_EXISTS")
+
+            user = User(
+                firstName=firstName,
+                lastName=lastName,
+                email=email,
+                phone=phone,
+                gender=gender,
+                dateOfBirth=dateOfBirth,
+                address=address,
+                role=UserRole.DOCTOR,
+            )
+            user.set_password(password)
+
+            db.session.add(user)
+            db.session.flush()
+
+            doctor = Doctor(
+                userID=user.userID,
+                clinicID=clinicID,
+                specialization=specialization,
+                licenseNumber=licenseNumber,
+                bio=bio,
+            )
+
+            db.session.add(doctor)
+            db.session.commit()
+            db.session.refresh(doctor)
+            return doctor
+
+
+        except IntegrityError as e:
+            db.session.rollback()
+            print("DB ERROR:", str(e))
+
+            raise Exception(str(e))
+
+            # ── READ ──────────────────────────────────────────────────────
     @staticmethod
     def get_by_id(doctor_id: int) -> Optional[Doctor]:
         return Doctor.query.get(doctor_id)
@@ -80,15 +102,33 @@ class DoctorDAO:
             return None
 
         doctor_fields = {"specialization", "licenseNumber", "bio", "clinicID"}
-        user_fields   = {"phone", "gender", "dateOfBirth", "address", "firstName", "lastName"}
+        user_fields   = {"phone", "gender", "dateOfBirth", "address", "firstName", "lastName", "email"}
 
         for key, value in kwargs.items():
             if value is None:
                 continue
+
             if key in doctor_fields:
                 setattr(doctor, key, value)
+
             elif key in user_fields and doctor.user:
-                setattr(doctor.user, key, value)
+
+
+                if key == "email":
+                    email = value.strip().lower()
+
+                    existing = User.query.filter(
+                        func.lower(User.email) == email,
+                        User.userID != doctor.user.userID
+                    ).first()
+
+                    if existing:
+                        raise Exception("EMAIL_EXISTS")
+
+                    doctor.user.email = email
+
+                else:
+                    setattr(doctor.user, key, value)
 
         db.session.commit()
         db.session.refresh(doctor)

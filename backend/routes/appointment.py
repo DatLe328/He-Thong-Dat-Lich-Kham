@@ -18,6 +18,18 @@ appointment_bp = Blueprint("appointment", __name__, url_prefix="/api/appointment
 def now():
     return datetime.now(timezone.utc)
 
+def normalize_phone(phone: str):
+    if not phone:
+        return phone
+
+    phone = phone.strip().replace(" ", "")
+
+    # +84 → 0
+    if phone.startswith("+84"):
+        phone = "0" + phone[3:]
+
+    return phone
+
 
 def parse_datetime(value: str):
     if not value:
@@ -95,12 +107,21 @@ def get_appointments():
         if user_id:
             query = query.filter(Appointment.patient.has(userID=user_id))
 
-
         elif phone:
 
+            normalized = normalize_phone(phone)
 
-            query = query.join(ProxyBooking, Appointment.appointmentId == ProxyBooking.appointmentId) \
-                .filter(ProxyBooking.phone == phone)
+            query = query.join(
+
+                ProxyBooking,
+
+                Appointment.appointmentId == ProxyBooking.appointmentId
+
+            ).filter(
+
+                ProxyBooking.phone == normalized
+
+            )
 
         if doctor_id:
             query = query.filter_by(doctorId=doctor_id)
@@ -126,6 +147,8 @@ def create_appointment():
 
         user_id = d.get("userId")
         patient_info = d.get("patientInfo")
+        if patient_info and patient_info.get("phone"):
+            patient_info["phone"] = normalize_phone(patient_info["phone"])
         doctor_id = d.get("doctorId")
         schedule_id = d.get("scheduleId")
         clinic_id = d.get("clinicId")
@@ -144,8 +167,10 @@ def create_appointment():
             scheduleId=schedule_id,
             clinicId=clinic_id,
             patientInfo=patient_info,
-            reason=d.get("reason") or reason
+            reason=d.get("reason") or reason,
+            note = d.get("note")
         )
+
 
         if error:
             return err(error, 409)
@@ -214,6 +239,29 @@ def cancel_appointment(id):
         ).start()
 
         return ok(appt.to_dict(), "Đã huỷ lịch")
+
+    except Exception as e:
+        db.session.rollback()
+        return err(str(e), 500)
+
+@appointment_bp.route("/<int:id>/approve", methods=["POST"])
+def approve_appointment(id):
+    try:
+        appt = Appointment.query.get(id)
+
+        if not appt:
+            return err("Không tìm thấy lịch hẹn", 404)
+
+        if appt.status != AppointmentStatus.PENDING:
+            return err("Chỉ có thể duyệt lịch PENDING")
+
+        appt.status = AppointmentStatus.CONFIRMED
+        appt.updatedAt = now()
+
+        db.session.commit()
+        db.session.refresh(appt)
+
+        return ok(appt.to_dict(), "Đã duyệt lịch")
 
     except Exception as e:
         db.session.rollback()

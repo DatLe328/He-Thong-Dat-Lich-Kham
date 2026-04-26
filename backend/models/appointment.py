@@ -90,6 +90,23 @@ class Appointment(db.Model):
             "createdAt": self.createdAt.isoformat(),
             "updatedAt": self.updatedAt.isoformat() if self.updatedAt else None,
             "expiresAt": self.expiresAt.isoformat() if self.expiresAt else None,
+
+            # ================= DOCTOR =================
+            "doctor": {
+                "doctorID": self.doctor.doctorID if self.doctor else None,
+                "name": (
+                    self.doctor.user.firstName + " " + self.doctor.user.lastName
+                    if self.doctor and self.doctor.user else None
+                ),
+                "specialization": self.doctor.specialization if self.doctor else None,
+            } if self.doctor else None,
+
+            # ================= PATIENT =================
+            "patient": {
+                "patientID": self.patient.patientID if self.patient else None,
+                "name": self.patient.fullName if self.patient else None,
+                "phone": self.patient.phone if self.patient else None,
+            } if self.patient else None,
         }
 
     def cancel(self, reason="USER_CANCEL"):

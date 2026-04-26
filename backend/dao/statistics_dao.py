@@ -1,6 +1,6 @@
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import func
+from sqlalchemy import func,or_
 
 from db.db import db
 from models.appointment import Appointment, AppointmentStatus
@@ -125,8 +125,19 @@ class StatisticsDAO:
             Appointment.status != AppointmentStatus.CANCELLED,
         )
 
-        registered_appointments = appointments.filter(Appointment.patientId.isnot(None)).count()
-        guest_appointments = appointments.filter(Appointment.patientId.is_(None)).count()
+        registered_appointments = db.session.query(Appointment).join(
+            Patient, Appointment.patientId == Patient.patientID
+        ).filter(
+            Patient.userID.isnot(None)
+        ).count()
+        guest_appointments = db.session.query(Appointment).join(
+            Patient, Appointment.patientId == Patient.patientID, isouter=True
+        ).filter(
+            or_(
+                Patient.userID.is_(None),
+                Patient.patientID.is_(None)
+            )
+        ).count()
         unique_patients = appointments.filter(Appointment.patientId.isnot(None)).with_entities(
             func.count(func.distinct(Appointment.patientId))
         ).scalar() or 0

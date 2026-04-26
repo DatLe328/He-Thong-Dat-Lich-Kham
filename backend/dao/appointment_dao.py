@@ -52,7 +52,8 @@ class AppointmentDAO:
         scheduleId=None,
         clinicId=None,
         reason=None,
-        patientInfo=None
+        patientInfo=None,
+        note=None
     ):
 
         # =========================
@@ -132,7 +133,8 @@ class AppointmentDAO:
                 clinicId=clinicId,
                 appointmentDate=appointmentDate,
                 reason=reason,
-                status=AppointmentStatus.PENDING
+                status=AppointmentStatus.PENDING,
+                note=note,
             )
 
             db.session.add(appt)
@@ -163,7 +165,7 @@ class AppointmentDAO:
                     channel="IN_APP"
                 ))
 
-            db.session.commit()
+            db.session.flush()
             return appt, None
 
         except Exception as e:
