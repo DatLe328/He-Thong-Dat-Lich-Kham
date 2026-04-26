@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+import unicodedata
 
 import requests
 from flask import Blueprint, current_app, jsonify, request
@@ -26,6 +27,68 @@ def _safe_user_question(question: str) -> str:
     # Keep user text short to reduce prompt injection surface.
     question = (question or "").strip()
     return question[:1200]
+
+
+def _safe_history(history: object, limit: int = 6) -> list[dict]:
+    if not isinstance(history, list):
+        return []
+
+    rows = []
+    for item in history[-limit:]:
+        if not isinstance(item, dict):
+            continue
+        role = str(item.get("role") or "").strip().lower()
+        content = str(item.get("content") or "").strip()
+        if role not in {"user", "bot", "assistant"} or not content:
+            continue
+        rows.append({"role": role, "content": content[:1200]})
+    return rows
+
+
+def _normalize_for_match(value: str) -> str:
+    text = (value or "").strip().lower()
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return " ".join(text.split())
+
+
+def _find_mentioned_doctor(question: str, history: list[dict], doctors: list[dict]):
+    merged_text = " ".join([question] + [item.get("content", "") for item in history])
+    normalized_text = _normalize_for_match(merged_text)
+
+    if not normalized_text:
+        return None
+
+    for doctor in doctors:
+        doctor_id = doctor.get("doctorId")
+        doctor_name = str(doctor.get("name") or "")
+        if not doctor_id or not doctor_name:
+            continue
+
+        normalized_name = _normalize_for_match(doctor_name)
+        if normalized_name and normalized_name in normalized_text:
+            return doctor
+
+        if f"bac si #{doctor_id}" in normalized_text:
+            return doctor
+
+    return None
+
+
+def _build_booking_suggestion(doctor: dict | None):
+    if not doctor:
+        return None
+
+    doctor_id = doctor.get("doctorId")
+    doctor_name = doctor.get("name") or f"Bac si #{doctor_id}"
+    if not doctor_id:
+        return None
+
+    return {
+        "doctorId": doctor_id,
+        "doctorName": doctor_name,
+        "doctorPath": f"/doctors/{doctor_id}",
+    }
 
 
 def _resolve_provider(requested_provider: str | None) -> str:
@@ -222,6 +285,7 @@ def _build_answer_prompt(question: str, context: dict, intent: str, reason: str)
         f"{question}\n\n"
         "[YEU CAU TRA LOI]\n"
         "- Uu tien thong tin tu context backend neu co.\n"
+        "- Co the dung [CHAT_HISTORY] de hieu cau hoi tiep theo trong cung mot hoi thoai.\n"
         "- Neu khong du du lieu cu the, noi ro va huong dan buoc tiep theo.\n"
         "- Neu intent la greeting hoac assistant_identity thi tra loi ngan gon, than thien, khong can liet ke context.\n"
         "- Khong tra loi ngoai pham vi y te/phong kham/bac si/lich hen."
@@ -268,6 +332,7 @@ def ask_chatbot():
     question = _safe_user_question(body.get("question", ""))
     user_id = body.get("userId")
     provider = _resolve_provider(body.get("provider"))
+    history = _safe_history(body.get("history"))
 
     if not question:
         return _err("Thiếu question.")
@@ -300,12 +365,24 @@ def ask_chatbot():
         )
 
     try:
+        top_doctors = _doctor_context(max_doctors=10)
         context = {
-            "topDoctors": _doctor_context(max_doctors=10),
+            "chatHistory": history,
+            "topDoctors": top_doctors,
             "patientAppointments": _patient_appointments_context(user_id=user_id, limit=10),
         }
+        mentioned_doctor = _find_mentioned_doctor(question, history, top_doctors)
+        booking_suggestion = _build_booking_suggestion(mentioned_doctor)
         answer = _generate_answer(provider, question, context, intent, reason)
-        return _ok({"answer": answer, "scope": "in-scope", "intent": intent, "provider": provider})
+        return _ok(
+            {
+                "answer": answer,
+                "scope": "in-scope",
+                "intent": intent,
+                "provider": provider,
+                "bookingSuggestion": booking_suggestion,
+            }
+        )
     except requests.RequestException:
         return _err(
             f"Khong ket noi duoc {provider}. Vui long kiem tra cau hinh va thu lai.",

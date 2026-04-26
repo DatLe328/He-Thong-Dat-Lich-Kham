@@ -4,6 +4,12 @@ type ChatMessage = {
   id: string;
   role: "bot" | "user";
   content: string;
+  bookingSuggestion?: {
+    doctorId: number;
+    doctorName: string;
+    doctorPath: string;
+    message?: string;
+  } | null;
 };
 
 const CHATBOT_ENDPOINT = "/api/chatbot/ask";
@@ -157,7 +163,19 @@ function ChatbotWidget() {
       });
 
       const payload = (await response.json().catch(() => null)) as
-        | { success?: boolean; data?: { answer?: string }; message?: string }
+        | {
+            success?: boolean;
+            data?: {
+              answer?: string;
+              bookingSuggestion?: {
+                doctorId: number;
+                doctorName: string;
+                doctorPath: string;
+                message?: string;
+              } | null;
+            };
+            message?: string;
+          }
         | null;
 
       if (!response.ok || !payload?.success) {
@@ -170,6 +188,7 @@ function ChatbotWidget() {
           id: `${Date.now()}-bot`,
           role: "bot",
           content: payload.data?.answer?.trim() || "Mình chưa có câu trả lời phù hợp.",
+          bookingSuggestion: payload.data?.bookingSuggestion || null,
         },
       ]);
     } catch (submitError) {
@@ -223,6 +242,14 @@ function ChatbotWidget() {
                 className={`chatbot-message chatbot-message--${message.role}`}
               >
                 {message.content}
+                {message.role === "bot" && message.bookingSuggestion?.doctorPath ? (
+                  <div style={{ marginTop: 8 }}>
+                    <div>{message.bookingSuggestion.message || `Bạn có muốn đặt lịch với ${message.bookingSuggestion.doctorName} không?`}</div>
+                    <a href={message.bookingSuggestion.doctorPath} className="button button--primary" style={{ display: "inline-block", marginTop: 6 }}>
+                      Đặt lịch ngay
+                    </a>
+                  </div>
+                ) : null}
               </div>
             ))}
 
