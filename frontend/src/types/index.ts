@@ -135,6 +135,10 @@ export type ApiDoctorSchedulesResponse = {
 export type ApiDoctorReview = {
   reviewId: number;
   patientId: number;
+  patient?: {
+    patientID: number;
+    fullName: string;
+  } | null;
   doctorId: number | null;
   appointmentId: number;
   rating: number;
@@ -189,6 +193,7 @@ export type DoctorAppointment = ApiDoctorAppointment & {
 export type DirectoryDoctor = {
   id: string;
   doctorId: number;
+  clinicId: number | null;
   name: string;
   firstName: string;
   lastName: string;
