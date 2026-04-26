@@ -27,7 +27,7 @@ export default function AdminLayout() {
           return;
         }
 
-        if (data.user.role !== "ADMIN") {
+        if (!data.user.role?.includes("ADMIN")) {
           navigate("/");
           return;
         }

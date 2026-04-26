@@ -59,7 +59,7 @@ export default function UsersPage() {
   };
 
   const filteredData = useMemo(() => {
-    let result = [...data];
+    let result = [...data].sort((a, b) => a.userID - b.userID);
 
     if (roleFilter !== "ALL") {
       result = result.filter((u) => u.role === roleFilter);
@@ -316,7 +316,7 @@ export default function UsersPage() {
                   onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} />
               </div>
 
-              <div>
+              <div  className={editingId ? "full" : ""}>
                 <label>Giới tính</label>
                 <select value={form.gender}
                   onChange={(e) => setForm({ ...form, gender: e.target.value })}>

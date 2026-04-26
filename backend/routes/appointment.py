@@ -18,6 +18,18 @@ appointment_bp = Blueprint("appointment", __name__, url_prefix="/api/appointment
 def now():
     return datetime.now(timezone.utc)
 
+def normalize_phone(phone: str):
+    if not phone:
+        return phone
+
+    phone = phone.strip().replace(" ", "")
+
+    # +84 → 0
+    if phone.startswith("+84"):
+        phone = "0" + phone[3:]
+
+    return phone
+
 
 def parse_datetime(value: str):
     if not value:
@@ -95,12 +107,21 @@ def get_appointments():
         if user_id:
             query = query.filter(Appointment.patient.has(userID=user_id))
 
-
         elif phone:
 
+            normalized = normalize_phone(phone)
 
-            query = query.join(ProxyBooking, Appointment.appointmentId == ProxyBooking.appointmentId) \
-                .filter(ProxyBooking.phone == phone)
+            query = query.join(
+
+                ProxyBooking,
+
+                Appointment.appointmentId == ProxyBooking.appointmentId
+
+            ).filter(
+
+                ProxyBooking.phone == normalized
+
+            )
 
         if doctor_id:
             query = query.filter_by(doctorId=doctor_id)
@@ -126,6 +147,8 @@ def create_appointment():
 
         user_id = d.get("userId")
         patient_info = d.get("patientInfo")
+        if patient_info and patient_info.get("phone"):
+            patient_info["phone"] = normalize_phone(patient_info["phone"])
         doctor_id = d.get("doctorId")
         schedule_id = d.get("scheduleId")
         clinic_id = d.get("clinicId")
