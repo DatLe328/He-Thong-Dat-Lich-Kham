@@ -66,10 +66,13 @@ def _ensure_patient_profile(user):
 def _serialize_auth_user(user, provider="credentials", avatar=None):
     return {
         "id": str(user.userID),
+        "userID": user.userID,
         "name": f"{user.firstName or ''} {user.lastName or ''}".strip(),
+        "firstName": user.firstName,
+        "lastName": user.lastName,
         "email": user.email,
         "phone": user.phone,
-        "role": str(user.role),
+        "role": user.role.value,
         "provider": provider,
         "avatar": avatar,
         "gender": user.gender,

@@ -177,3 +177,26 @@ export async function cancelDoctorAppointment(
     data: mapAppointment(payload.data),
   };
 }
+
+export async function updateDoctorAppointmentStatus(
+  doctorId: string | number,
+  appointmentId: number,
+  status: "COMPLETED" | "NO_SHOW"
+) {
+  const payload = await fetchJson<{ success: boolean; data: ApiDoctorAppointmentsResponse["data"][number] }>(
+    `${DOCTORS_ENDPOINT}/${doctorId}/appointments/${appointmentId}/update-status`,
+    "Không thể cập nhật trạng thái lịch hẹn.",
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status }),
+    }
+  );
+
+  return {
+    ...payload,
+    data: mapAppointment(payload.data),
+  };
+}

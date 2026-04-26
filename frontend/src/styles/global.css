@@ -691,6 +691,20 @@ img {
   box-shadow: var(--button-shadow);
 }
 
+.button--success {
+  --button-shadow: 0 12px 26px rgba(34, 197, 94, 0.28);
+  color: white;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: var(--button-shadow);
+}
+
+.button--warning {
+  --button-shadow: 0 12px 26px rgba(245, 158, 11, 0.28);
+  color: white;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: var(--button-shadow);
+}
+
 .button--dark {
   color: white;
   background: #0f172a;

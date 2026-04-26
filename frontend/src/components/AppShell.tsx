@@ -17,10 +17,7 @@ function AppShell() {
   const navigate = useNavigate();
   console.log(user?.role);
   const isDoctor = useMemo(() => user?.role === "DOCTOR", [user?.role]);
- const isAdmin = useMemo(
-  () => user?.role === "UserRole.ADMIN",
-  [user?.role]
-);
+  const isAdmin = useMemo(() => user?.role === "ADMIN", [user?.role]);
 
   const [doctorId, setDoctorId] = useState<number | null>(null);
 

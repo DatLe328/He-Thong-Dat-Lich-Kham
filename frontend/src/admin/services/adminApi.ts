@@ -28,3 +28,23 @@ export const updateUser = async (id: number, data: any) => {
 export const deleteUser = async (id: number) => {
   await fetch(`${BASE}/${id}`, { method: "DELETE" });
 };
+
+export const triggerGenerateSchedules = async (daysAhead: number) => {
+  const res = await fetch("/api/users/admin/schedules/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ daysAhead }),
+  });
+
+  const json = await res.json().catch(() => null);
+
+  if (!res.ok || json?.success === false) {
+    throw new Error(json?.message || "Không thể chạy job sinh schedule.");
+  }
+
+  return {
+    created: json?.data?.created ?? 0,
+    daysAhead: json?.data?.daysAhead ?? daysAhead,
+  };
+};

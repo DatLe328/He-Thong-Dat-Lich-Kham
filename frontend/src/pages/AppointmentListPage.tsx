@@ -227,7 +227,7 @@ function AppointmentListPage() {
                         Đặt cọc
                       </button>
                     )}
-                    {a.status !== "CANCELLED" && (
+                    {a.status !== "CANCELLED" && a.status !== "COMPLETED" && (
                       <button className="button button--outline" onClick={() => { setCancelId(a.appointmentId); setShowCancelModal(true); }}>
                         Huỷ lịch
                       </button>

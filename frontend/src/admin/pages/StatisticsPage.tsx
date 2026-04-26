@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "../../styles/admin.css";
+import { triggerGenerateSchedules } from "../services/adminApi";
 
 export default function StatisticsPage() {
   const [overview, setOverview] = useState<any>({});
@@ -9,7 +10,10 @@ export default function StatisticsPage() {
   const [topClinics, setTopClinics] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
+  const [generateMessage, setGenerateMessage] = useState("");
+  const [generateDays, setGenerateDays] = useState(30);
 
   // ================= SAFE FETCH =================
   const safeFetch = async (url: string) => {
@@ -54,9 +58,60 @@ export default function StatisticsPage() {
     load();
   }, []);
 
+  const handleGenerateSchedules = async () => {
+    const normalizedDays = Number.isFinite(generateDays)
+      ? Math.min(180, Math.max(1, Math.floor(generateDays)))
+      : 30;
+
+    setGenerateDays(normalizedDays);
+    setGenerating(true);
+    setGenerateMessage("");
+
+    try {
+      const result = await triggerGenerateSchedules(normalizedDays);
+      setGenerateMessage(
+        `Đã chạy job cho ${result.daysAhead} ngày. Tạo mới ${result.created} schedule.`
+      );
+    } catch (err) {
+      setGenerateMessage(
+        err instanceof Error
+          ? err.message
+          : "Không thể chạy job sinh schedule."
+      );
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   return (
     <div className="content">
       <h2>🏥 Hospital Admin Dashboard</h2>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3>⚙️ Schedule Generator</h3>
+        <p>Tạo ngay schedule cho N ngày tới (Thứ Hai - Thứ Sáu, 8:00 - 17:00).</p>
+        <div className="toolbar" style={{ marginTop: 12, marginBottom: 12 }}>
+          <label htmlFor="generate-days">Số ngày tạo:</label>
+          <input
+            id="generate-days"
+            type="number"
+            min={1}
+            max={180}
+            value={generateDays}
+            onChange={(event) => setGenerateDays(Number(event.target.value))}
+            className="search-input"
+            style={{ width: 140 }}
+          />
+        </div>
+        <button
+          className="btn btn-primary"
+          onClick={handleGenerateSchedules}
+          disabled={generating}
+        >
+          {generating ? "Đang chạy job..." : "Chạy job sinh schedule ngay"}
+        </button>
+        {generateMessage ? <p style={{ marginTop: 10 }}>{generateMessage}</p> : null}
+      </div>
 
       {error && <div className="error">❌ {error}</div>}
       {loading && <p>⏳ Đang tải dữ liệu...</p>}

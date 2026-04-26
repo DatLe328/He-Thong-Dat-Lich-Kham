@@ -3,6 +3,7 @@ from db.db import db
 from models.user import User, UserRole
 from datetime import datetime
 from models.doctor import Doctor
+from scheduler import generate_schedules
 
 user_bp = Blueprint("user", __name__, url_prefix="/api/users")
 
@@ -246,5 +247,41 @@ def delete_user(user_id):
         return jsonify({
             "success": False,
             "message": str(e)
+        }), 500
+
+
+@user_bp.route("/admin/schedules/generate", methods=["POST"])
+def trigger_generate_schedules():
+    try:
+        payload = request.get_json(silent=True) or {}
+        days_ahead = payload.get("daysAhead", 30)
+
+        try:
+            days_ahead = int(days_ahead)
+        except (TypeError, ValueError):
+            return jsonify({
+                "success": False,
+                "message": "daysAhead phải là số nguyên."
+            }), 400
+
+        if days_ahead < 1 or days_ahead > 180:
+            return jsonify({
+                "success": False,
+                "message": "daysAhead phải trong khoảng 1-180."
+            }), 400
+
+        created = generate_schedules(days_ahead=days_ahead)
+        return jsonify({
+            "success": True,
+            "message": "Đã chạy job sinh schedule thành công.",
+            "data": {
+                "created": created,
+                "daysAhead": days_ahead,
+            }
+        }), 200
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Không thể chạy job sinh schedule: {str(e)}"
         }), 500
 

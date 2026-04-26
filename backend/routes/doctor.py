@@ -203,6 +203,47 @@ def cancel_appointment(doctor_id, appt_id):
     return jsonify({"success": True, "data": appt.to_dict()}), 200
 
 
+@doctor_bp.route("/<int:doctor_id>/appointments/<int:appt_id>/update-status", methods=["PATCH"])
+def update_appointment_status(doctor_id, appt_id):
+    if not DoctorDAO.get_by_id(doctor_id):
+        return _not_found()
+
+    from models.appointment import AppointmentStatus
+    from db.db import db
+
+    d = request.get_json(silent=True) or {}
+    new_status = d.get("status")
+
+    if not new_status:
+        return jsonify({"success": False, "message": "Thiếu trường status."}), 400
+
+    # Validate status value
+    try:
+        status_enum = AppointmentStatus[new_status]
+    except KeyError:
+        valid_statuses = [s.value for s in AppointmentStatus]
+        return jsonify({
+            "success": False,
+            "message": f"Status không hợp lệ. Các giá trị hợp lệ: {', '.join(valid_statuses)}"
+        }), 400
+
+    from models.appointment import Appointment
+
+    appt = Appointment.query.get(appt_id)
+    if not appt:
+        return jsonify({"success": False, "message": "Không tìm thấy lịch hẹn."}), 404
+
+    # Only doctor can update their own appointment status
+    if appt.doctorId != doctor_id:
+        return jsonify({"success": False, "message": "Bạn không có quyền cập nhật lịch hẹn này."}), 403
+
+    appt.status = status_enum
+    appt.updatedAt = datetime.now()
+    db.session.commit()
+
+    return jsonify({"success": True, "data": appt.to_dict()}), 200
+
+
 @doctor_bp.route("/<int:doctor_id>/schedules", methods=["GET"])
 def get_schedules(doctor_id):
     doctor = DoctorDAO.get_by_id(doctor_id)

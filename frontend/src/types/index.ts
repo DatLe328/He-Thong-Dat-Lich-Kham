@@ -149,7 +149,7 @@ export type ApiDoctorReviewsResponse = {
   avgRating: number;
 };
 
-export type ApiAppointmentStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+export type ApiAppointmentStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
 
 export type ApiDoctorAppointment = {
   appointmentId: number;

@@ -6,6 +6,7 @@ import {
   cancelDoctorAppointment,
   fetchDoctorAppointments,
   rescheduleDoctorAppointment,
+  updateDoctorAppointmentStatus,
 } from "../lib/doctorAppointments";
 import { DoctorAppointment, DoctorProfile } from "../types";
 
@@ -66,6 +67,10 @@ function DoctorAppointmentsPage() {
   const [cancelTarget, setCancelTarget] = useState<DoctorAppointment | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelError, setCancelError] = useState("");
+  const [completeTarget, setCompleteTarget] = useState<DoctorAppointment | null>(null);
+  const [completeError, setCompleteError] = useState("");
+  const [noShowTarget, setNoShowTarget] = useState<DoctorAppointment | null>(null);
+  const [noShowError, setNoShowError] = useState("");
 
   useEffect(() => {
     if (rescheduleTarget) {
@@ -214,6 +219,50 @@ function DoctorAppointmentsPage() {
     } catch (saveError) {
       setCancelError(
         saveError instanceof Error ? saveError.message : "Không thể huỷ lịch hẹn."
+      );
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleCompleteSubmit = async () => {
+    if (!doctorId || !completeTarget) {
+      return;
+    }
+
+    try {
+      setSavingId(completeTarget.appointmentId);
+      setCompleteError("");
+
+      await updateDoctorAppointmentStatus(doctorId, completeTarget.appointmentId, "COMPLETED");
+
+      await refreshList();
+      setCompleteTarget(null);
+    } catch (saveError) {
+      setCompleteError(
+        saveError instanceof Error ? saveError.message : "Không thể cập nhật trạng thái."
+      );
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const handleNoShowSubmit = async () => {
+    if (!doctorId || !noShowTarget) {
+      return;
+    }
+
+    try {
+      setSavingId(noShowTarget.appointmentId);
+      setNoShowError("");
+
+      await updateDoctorAppointmentStatus(doctorId, noShowTarget.appointmentId, "NO_SHOW");
+
+      await refreshList();
+      setNoShowTarget(null);
+    } catch (saveError) {
+      setNoShowError(
+        saveError instanceof Error ? saveError.message : "Không thể cập nhật trạng thái."
       );
     } finally {
       setSavingId(null);
@@ -387,22 +436,46 @@ function DoctorAppointmentsPage() {
                   ) : null}
 
                   <div className="inline-actions">
-                    <button
-                      type="button"
-                      className="button button--primary button--compact"
-                      disabled={savingId === appointment.appointmentId || appointment.status === "CANCELLED"}
-                      onClick={() => setRescheduleTarget(appointment)}
-                    >
-                      Dời lịch
-                    </button>
-                    <button
-                      type="button"
-                      className="button button--ghost button--compact"
-                      disabled={savingId === appointment.appointmentId || appointment.status === "CANCELLED"}
-                      onClick={() => setCancelTarget(appointment)}
-                    >
-                      Huỷ lịch
-                    </button>
+                    {appointment.status !== "CANCELLED" && appointment.status !== "COMPLETED" && (
+                      <>
+                        <button
+                          type="button"
+                          className="button button--primary button--compact"
+                          disabled={savingId === appointment.appointmentId}
+                          onClick={() => setRescheduleTarget(appointment)}
+                        >
+                          Dời lịch
+                        </button>
+                        <button
+                          type="button"
+                          className="button button--ghost button--compact"
+                          disabled={savingId === appointment.appointmentId}
+                          onClick={() => setCancelTarget(appointment)}
+                        >
+                          Huỷ lịch
+                        </button>
+                      </>
+                    )}
+                    {appointment.status === "CONFIRMED" && (
+                      <>
+                        <button
+                          type="button"
+                          className="button button--success button--compact"
+                          disabled={savingId === appointment.appointmentId}
+                          onClick={() => setCompleteTarget(appointment)}
+                        >
+                          ✓ Hoàn tất khám
+                        </button>
+                        <button
+                          type="button"
+                          className="button button--warning button--compact"
+                          disabled={savingId === appointment.appointmentId}
+                          onClick={() => setNoShowTarget(appointment)}
+                        >
+                          ✗ Không đến
+                        </button>
+                      </>
+                    )}
                   </div>
                 </article>
               ))}
@@ -502,6 +575,100 @@ function DoctorAppointmentsPage() {
                   onClick={() => setCancelTarget(null)}
                 >
                   Đóng
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Complete Appointment Modal */}
+      {completeTarget ? (
+        <div className="doctor-appointment-modal-overlay" role="presentation" onClick={() => setCompleteTarget(null)}>
+          <div className="doctor-appointment-modal-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="doctor-appointment-modal-card__header">
+              <div>
+                <span className="eyebrow">Hoàn tất khám</span>
+                <h2>{completeTarget.contactName}</h2>
+              </div>
+              <button type="button" className="button button--ghost button--compact" onClick={() => setCompleteTarget(null)}>
+                Đóng
+              </button>
+            </div>
+
+            <form className="auth-form" onSubmit={(e) => { e.preventDefault(); handleCompleteSubmit(); }}>
+              <p>
+                Bạn chắc chắn muốn hoàn tất khám vào{" "}
+                <strong>{completeTarget.appointmentDateLabel} {completeTarget.appointmentTimeLabel}</strong>?
+              </p>
+
+              {completeError ? (
+                <div className="error-message">{completeError}</div>
+              ) : null}
+
+              <div className="inline-actions">
+                <button
+                  type="submit"
+                  className="button button--success"
+                  disabled={savingId === completeTarget.appointmentId}
+                >
+                  {savingId === completeTarget.appointmentId
+                    ? "Đang lưu..."
+                    : "Xác nhận"}
+                </button>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => setCompleteTarget(null)}
+                >
+                  Huỷ
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
+      {/* No-Show Modal */}
+      {noShowTarget ? (
+        <div className="doctor-appointment-modal-overlay" role="presentation" onClick={() => setNoShowTarget(null)}>
+          <div className="doctor-appointment-modal-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="doctor-appointment-modal-card__header">
+              <div>
+                <span className="eyebrow">Không đến</span>
+                <h2>{noShowTarget.contactName}</h2>
+              </div>
+              <button type="button" className="button button--ghost button--compact" onClick={() => setNoShowTarget(null)}>
+                Đóng
+              </button>
+            </div>
+
+            <form className="auth-form" onSubmit={(e) => { e.preventDefault(); handleNoShowSubmit(); }}>
+              <p>
+                Bạn chắc chắn muốn ghi nhận bệnh nhân không đến khám vào{" "}
+                <strong>{noShowTarget.appointmentDateLabel} {noShowTarget.appointmentTimeLabel}</strong>?
+              </p>
+
+              {noShowError ? (
+                <div className="error-message">{noShowError}</div>
+              ) : null}
+
+              <div className="inline-actions">
+                <button
+                  type="submit"
+                  className="button button--warning"
+                  disabled={savingId === noShowTarget.appointmentId}
+                >
+                  {savingId === noShowTarget.appointmentId
+                    ? "Đang lưu..."
+                    : "Xác nhận"}
+                </button>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => setNoShowTarget(null)}
+                >
+                  Huỷ
                 </button>
               </div>
             </form>
