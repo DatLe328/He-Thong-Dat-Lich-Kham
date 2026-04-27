@@ -125,13 +125,25 @@ class StatisticsDAO:
             Appointment.status != AppointmentStatus.CANCELLED,
         )
 
-        registered_appointments = db.session.query(Appointment).join(
-            Patient, Appointment.patientId == Patient.patientID
+        registered_appointments = StatisticsDAO._apply_appointment_filters(
+            db.session.query(Appointment).join(
+                Patient, Appointment.patientId == Patient.patientID
+            ),
+            start_date=start_date,
+            end_date=end_date,
+            doctor_id=doctor_id,
+            clinic_id=clinic_id,
         ).filter(
             Patient.userID.isnot(None)
         ).count()
-        guest_appointments = db.session.query(Appointment).join(
-            Patient, Appointment.patientId == Patient.patientID, isouter=True
+        guest_appointments = StatisticsDAO._apply_appointment_filters(
+            db.session.query(Appointment).join(
+                Patient, Appointment.patientId == Patient.patientID, isouter=True
+            ),
+            start_date=start_date,
+            end_date=end_date,
+            doctor_id=doctor_id,
+            clinic_id=clinic_id,
         ).filter(
             or_(
                 Patient.userID.is_(None),

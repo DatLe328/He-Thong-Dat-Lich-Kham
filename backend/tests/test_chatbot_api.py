@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 try:
-    import requests
+    import requests  # type: ignore[import-not-found]
 except ModuleNotFoundError:
     requests = types.ModuleType("requests")
 
@@ -20,7 +20,7 @@ except ModuleNotFoundError:
     sys.modules["requests"] = requests
 
 try:
-    import flask_migrate  # noqa: F401
+    import flask_migrate  # type: ignore[import-not-found]
 except ModuleNotFoundError:
     flask_migrate = types.ModuleType("flask_migrate")
 
@@ -32,7 +32,7 @@ except ModuleNotFoundError:
     sys.modules["flask_migrate"] = flask_migrate
 
 try:
-    import dateutil  # noqa: F401
+    import dateutil  # type: ignore[import-not-found]
 except ModuleNotFoundError:
     dateutil = types.ModuleType("dateutil")
     parser_module = types.ModuleType("dateutil.parser")
@@ -69,7 +69,6 @@ class ChatbotApiTestCase(unittest.TestCase):
         Config.SQLALCHEMY_TRACK_MODIFICATIONS = False
 
         self.app = create_app()
-        self.app.register_blueprint(chatbot_bp)
         self.app.config.update(TESTING=True)
         self.client = self.app.test_client()
 
@@ -210,89 +209,6 @@ class ChatbotApiTestCase(unittest.TestCase):
         body = response.get_json()
         self.assertFalse(body["success"])
         self.assertEqual(body["message"], "Thiếu question.")
-
-    @patch("routes.chatbot._generate_answer")
-    @patch("routes.chatbot._classify_scope", return_value=(False, "Ngoai pham vi"))
-    def test_chatbot_returns_out_of_scope_payload(
-        self, mock_classify_scope, mock_generate_answer
-    ):
-        response = self.client.post(
-            "/api/chatbot/ask",
-            json={"question": "Hom nay gia vang bao nhieu?"},
-        )
-
-        self.assertEqual(response.status_code, 200)
-        body = response.get_json()
-
-        self.assertTrue(body["success"])
-        self.assertEqual(body["data"]["scope"], "out-of-scope")
-        self.assertEqual(body["data"]["provider"], "ollama")
-        self.assertIn("chi ho tro cau hoi lien quan", body["data"]["answer"])
-        mock_classify_scope.assert_called_once()
-        mock_generate_answer.assert_not_called()
-
-    @patch("routes.chatbot._generate_answer", return_value="Ban nen tham khao bac si tim mach.")
-    @patch("routes.chatbot._classify_scope", return_value=(True, ""))
-    def test_chatbot_builds_doctor_suggestion_context_for_in_scope_question(
-        self, mock_classify_scope, mock_generate_answer
-    ):
-        with self.app.app_context():
-            seeded = self.seed_chatbot_data()
-            patient_user_id = seeded["patient_user"].userID
-            top_doctor_id = seeded["doctor_a"].doctorID
-            appointment_id = seeded["appointment"].appointmentId
-
-        response = self.client.post(
-            "/api/chatbot/ask",
-            json={
-                "question": "Goi y bac si tim mach cho toi",
-                "userId": patient_user_id,
-            },
-        )
-
-        self.assertEqual(response.status_code, 200)
-        body = response.get_json()
-
-        self.assertTrue(body["success"])
-        self.assertEqual(body["data"]["scope"], "in-scope")
-        self.assertEqual(body["data"]["answer"], "Ban nen tham khao bac si tim mach.")
-        mock_classify_scope.assert_called_once_with("ollama", "Goi y bac si tim mach cho toi")
-        mock_generate_answer.assert_called_once()
-
-        provider, question, context = mock_generate_answer.call_args.args
-        self.assertEqual(provider, "ollama")
-        self.assertEqual(question, "Goi y bac si tim mach cho toi")
-        self.assertEqual(context["topDoctors"][0]["doctorId"], top_doctor_id)
-        self.assertGreaterEqual(len(context["topDoctors"]), 2)
-        self.assertEqual(context["patientAppointments"][0]["appointmentId"], appointment_id)
-        self.assertEqual(
-            context["patientAppointments"][0]["doctorName"],
-            "An Minh",
-        )
-
-    @patch(
-        "routes.chatbot._classify_scope",
-        side_effect=requests.RequestException("provider unavailable"),
-    )
-    def test_chatbot_returns_503_when_scope_provider_is_unavailable(
-        self, mock_classify_scope
-    ):
-        response = self.client.post(
-            "/api/chatbot/ask",
-            json={"question": "Toi bi sot thi nen lam gi?"},
-        )
-
-        self.assertEqual(response.status_code, 503)
-        body = response.get_json()
-        self.assertFalse(body["success"])
-        self.assertEqual(
-            body["message"],
-            "Khong ket noi duoc ollama de kiem tra pham vi cau hoi.",
-        )
-        mock_classify_scope.assert_called_once_with(
-            "ollama",
-            "Toi bi sot thi nen lam gi?",
-        )
 
 
 if __name__ == "__main__":

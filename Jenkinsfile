@@ -42,6 +42,9 @@ pipeline {
                         . venv/bin/activate
                         
                         pip install -r requirements.txt
+
+                        echo "--- Running Backend Unit Tests ---"
+                        python -m unittest discover -s tests -p "test_*.py"
                         
                         echo "--- Testing App Startup ---"
                         timeout 5s python app.py || if [ $? -eq 124 ]; then echo "App runs fine!"; else echo "App failed"; exit 1; fi

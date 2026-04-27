@@ -229,6 +229,7 @@ class StatisticsApiTestCase(unittest.TestCase):
                 "CONFIRMED": 1,
                 "COMPLETED": 1,
                 "CANCELLED": 1,
+                "NO_SHOW": 0,
             },
         )
         self.assertEqual(data["dateRange"], {"from": None, "to": None})
@@ -256,6 +257,7 @@ class StatisticsApiTestCase(unittest.TestCase):
                 "CONFIRMED": 1,
                 "COMPLETED": 0,
                 "CANCELLED": 1,
+                "NO_SHOW": 0,
             },
         )
         self.assertEqual(
